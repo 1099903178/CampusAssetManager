@@ -1,0 +1,31 @@
+"""
+CampusAssetManager - 校物通校园物品量化管理系统
+Python项目依赖配置文件
+
+用途：定义项目所需的所有Python包及其版本
+作者：系统开发团队
+日期：2025-01-05
+"""
+
+# Web框架
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+
+# 数据库相关
+sqlalchemy==2.0.36
+alembic==1.14.0
+
+# 数据验证
+pydantic==2.9.2
+pydantic-settings==2.6.0
+
+# 认证和安全
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.12
+
+# 数据库驱动（SQLite）
+# SQLAlchemy 2.0+ 内置支持SQLite，无需额外驱动
+
+# 工具库
+python-dotenv==1.0.1
