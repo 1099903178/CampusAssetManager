@@ -67,7 +67,7 @@
           text-color="#fff"
           active-text-color="#ffd04b"
         >
-          <el-menu-item index="/">
+          <el-menu-item index="/home">
             <el-icon><Odometer /></el-icon>
             <span>首页</span>
           </el-menu-item>
@@ -304,8 +304,23 @@ const logout = () => {
  */
 .layout-main {
   flex: 1;
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background-color: #f5f7fa;
+}
+
+.layout-main :deep(.el-scrollbar) {
+  flex: 1;
+  height: 100%;
+}
+
+.layout-main :deep(.el-scrollbar__wrap) {
+  overflow-x: hidden;
+}
+
+.layout-main :deep(.el-scrollbar__view) {
+  padding: 20px;
 }
 
 /**

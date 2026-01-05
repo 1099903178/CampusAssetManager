@@ -12,11 +12,10 @@
  */
 
 <template>
-  <LayoutComponent>
-    <div class="home-container">
-      <el-row :gutter="20">
+  <div class="home-container">
+      <el-row :gutter="20" class="stat-row">
         <!-- 统计卡片 -->
-        <el-col :span="6" v-for="stat in statistics" :key="stat.title">
+        <el-col :xs="24" :sm="12" :md="12" :lg="6" :xl="6" v-for="stat in statistics" :key="stat.title">
           <el-card class="stat-card">
             <div class="stat-content">
               <div class="stat-icon" :style="{ background: stat.color }">
@@ -46,6 +45,7 @@
             :key="action.name"
             :type="action.type"
             @click="handleAction(action.path)"
+            class="action-button"
           >
             <el-icon class="action-icon">
               <component :is="action.icon" />
@@ -77,14 +77,12 @@
         </el-timeline>
       </el-card>
     </div>
-  </LayoutComponent>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores'
-import LayoutComponent from '@/components/common/LayoutComponent.vue'
 import {
   Box,
   ShoppingCart,
@@ -195,16 +193,27 @@ const handleAction = (path) => {
 
 <style scoped>
 .home-container {
+  width: 100%;
+  /* 设置最大宽度限制，使内容居中且不过于分散 */
+  max-width: 1600px;
+  margin: 0 auto;
   padding: 20px;
+  box-sizing: border-box;
+}
+
+.stat-row {
+  margin-bottom: 20px;
 }
 
 /**
  * 统计卡片
  */
 .stat-card {
+  width: 100%;
   margin-bottom: 20px;
   cursor: pointer;
   transition: all 0.3s;
+  box-sizing: border-box;
 }
 
 .stat-card:hover {
@@ -261,21 +270,23 @@ const handleAction = (path) => {
 .action-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 16px;
 }
 
 .action-button {
-  width: 120px;
+  min-width: 140px;
   height: 80px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   gap: 8px;
+  padding: 0 20px;
 }
 
-.action-icon {
-  font-size: 24px;
+.action-button .action-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
 }
 
 /**

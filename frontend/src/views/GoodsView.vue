@@ -12,7 +12,6 @@
  */
 
 <template>
-  <LayoutComponent>
     <div class="goods-container">
       <!-- 工具栏 -->
       <el-card class="toolbar-card">
@@ -82,8 +81,13 @@
         </TableComponent>
       </el-card>
     </div>
-  </LayoutComponent>
 </template>
+
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import TableComponent from '@/components/common/TableComponent.vue'
+import { getGoodsList, getGoodsCategories, deleteGoods } from '@/api'
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'

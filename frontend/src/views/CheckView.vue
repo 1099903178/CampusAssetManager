@@ -12,7 +12,6 @@
  */
 
 <template>
-  <LayoutComponent>
     <div class="check-container">
       <!-- 工具栏 -->
       <el-card class="toolbar-card">
@@ -53,13 +52,11 @@
         </TableComponent>
       </el-card>
     </div>
-  </LayoutComponent>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import LayoutComponent from '@/components/common/LayoutComponent.vue'
 import TableComponent from '@/components/common/TableComponent.vue'
 import { getCheckList } from '@/api'
 

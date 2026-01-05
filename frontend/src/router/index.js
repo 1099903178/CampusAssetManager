@@ -18,46 +18,53 @@ import { createRouter, createWebHistory } from 'vue-router'
  */
 const routes = [
   {
-    path: '/',
-    name: 'Home',
-    component: () => import('@/views/HomeView.vue'),
-    meta: { title: '首页', requiresAuth: false }
-  },
-  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/LoginView.vue'),
     meta: { title: '登录', requiresAuth: false }
   },
   {
-    path: '/goods',
-    name: 'Goods',
-    component: () => import('@/views/GoodsView.vue'),
-    meta: { title: '物品管理', requiresAuth: true }
-  },
-  {
-    path: '/stock',
-    name: 'Stock',
-    component: () => import('@/views/StockView.vue'),
-    meta: { title: '库存管理', requiresAuth: true }
-  },
-  {
-    path: '/check',
-    name: 'Check',
-    component: () => import('@/views/CheckView.vue'),
-    meta: { title: '盘点管理', requiresAuth: true }
-  },
-  {
-    path: '/statistics',
-    name: 'Statistics',
-    component: () => import('@/views/StatisticsView.vue'),
-    meta: { title: '统计报表', requiresAuth: true }
-  },
-  {
-    path: '/settings',
-    name: 'Settings',
-    component: () => import('@/views/SettingsView.vue'),
-    meta: { title: '系统设置', requiresAuth: true }
+    path: '/',
+    component: () => import('@/components/common/LayoutComponent.vue'),
+    redirect: '/home',
+    children: [
+      {
+        path: 'home',
+        name: 'Home',
+        component: () => import('@/views/HomeView.vue'),
+        meta: { title: '首页', requiresAuth: false }
+      },
+      {
+        path: 'goods',
+        name: 'Goods',
+        component: () => import('@/views/GoodsView.vue'),
+        meta: { title: '物品管理', requiresAuth: true }
+      },
+      {
+        path: 'stock',
+        name: 'Stock',
+        component: () => import('@/views/StockView.vue'),
+        meta: { title: '库存管理', requiresAuth: true }
+      },
+      {
+        path: 'check',
+        name: 'Check',
+        component: () => import('@/views/CheckView.vue'),
+        meta: { title: '盘点管理', requiresAuth: true }
+      },
+      {
+        path: 'statistics',
+        name: 'Statistics',
+        component: () => import('@/views/StatisticsView.vue'),
+        meta: { title: '统计报表', requiresAuth: true }
+      },
+      {
+        path: 'settings',
+        name: 'Settings',
+        component: () => import('@/views/SettingsView.vue'),
+        meta: { title: '系统设置', requiresAuth: true }
+      }
+    ]
   }
 ]
 
@@ -72,11 +79,15 @@ const router = createRouter({
 /**
  * 全局前置守卫
  * 用于验证用户权限
+ *
+ * 开发模式：临时禁用登录验证以便快速测试
+ * 生产环境：请取消注释以启用登录验证
  */
 router.beforeEach((to, from, next) => {
   // 设置页面标题
   document.title = `${to.meta.title || '校园物品管理系统'} - 校物通`
   
+  // ========== 生产模式：启用登录验证 ==========
   // 检查是否需要认证
   if (to.meta.requiresAuth) {
     const token = localStorage.getItem('token')
@@ -96,6 +107,13 @@ router.beforeEach((to, from, next) => {
       next()
     }
   }
+  
+  // ========== 开发模式：跳过登录验证（以下代码已注释）==========
+  /*
+  console.log(`[开发模式] 访问页面: ${to.path} (跳过登录验证)`)
+  next()
+  return
+  */
 })
 
 /**

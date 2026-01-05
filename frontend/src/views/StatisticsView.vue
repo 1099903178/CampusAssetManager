@@ -13,7 +13,6 @@
  */
 
 <template>
-  <LayoutComponent>
     <div class="statistics-container">
       <!-- 统计卡片 -->
       <el-row :gutter="20">
@@ -109,14 +108,12 @@
         </el-table>
       </el-card>
     </div>
-  </LayoutComponent>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
-import LayoutComponent from '@/components/common/LayoutComponent.vue'
 import { getStockOverview, getCategoryStatistics, getStockAlert } from '@/api'
 
 /**

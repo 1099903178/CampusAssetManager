@@ -12,7 +12,6 @@
  */
 
 <template>
-  <LayoutComponent>
     <div class="settings-container">
       <el-tabs v-model="activeTab" type="border-card">
         <!-- 系统配置 -->
@@ -154,13 +153,11 @@
         </el-tab-pane>
       </el-tabs>
     </div>
-  </LayoutComponent>
 </template>
 
 <script setup>
 import { ref, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import LayoutComponent from '@/components/common/LayoutComponent.vue'
 import TableComponent from '@/components/common/TableComponent.vue'
 import { getConfigs, updateConfig, getOperationLogs } from '@/api'
 
