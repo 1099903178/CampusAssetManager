@@ -12,6 +12,7 @@
  */
 
 <template>
+  <LayoutComponent>
     <div class="stock-container">
       <!-- 工具栏 -->
       <el-card class="toolbar-card">

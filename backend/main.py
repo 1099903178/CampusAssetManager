@@ -20,7 +20,7 @@ FastAPI主程序入口
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import auth, users
+from app.api.v1 import auth, users, goods
 from app.database.config import engine, Base
 
 # ==================== 创建FastAPI应用 ====================
@@ -63,6 +63,13 @@ app.include_router(
     users.router,
     prefix="/v1",
     tags=["用户管理"]
+)
+
+# 注册物品管理路由
+app.include_router(
+    goods.router,
+    prefix="/v1",
+    tags=["物品管理"]
 )
 
 # ==================== 数据库初始化 ====================

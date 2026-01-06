@@ -158,6 +158,7 @@ const handleLogin = async () => {
     
     /**
      * 保存Token和用户信息
+     * 响应拦截器已解包，response 直接是 {access_token, token_type, user}
      */
     userStore.setToken(response.access_token)
     userStore.setUser(response.user)
