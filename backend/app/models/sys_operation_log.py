@@ -10,7 +10,7 @@ CampusAssetManager/backend/app/models/sys_operation_log.py
 - 声明式：使用SQLAlchemy ORM声明式定义表结构
 - 外键关系：关联用户表
 
-作者：系统开发团队
+作者：CampusAssetManager开发团队
 日期：2025-01-05
 """
 

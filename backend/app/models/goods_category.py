@@ -10,7 +10,7 @@ CampusAssetManager/backend/app/models/goods_category.py
 - 声明式：使用SQLAlchemy ORM声明式定义表结构
 - 层级关系：支持分类层级结构
 
-作者：系统开发团队
+作者：CampusAssetManager开发团队
 日期：2025-01-05
 """
 

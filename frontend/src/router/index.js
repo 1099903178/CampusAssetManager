@@ -59,6 +59,12 @@ const routes = [
         meta: { title: '统计报表', requiresAuth: true }
       },
       {
+        path: 'users',
+        name: 'Users',
+        component: () => import('@/views/UsersView.vue'),
+        meta: { title: '用户管理', requiresAuth: true }
+      },
+      {
         path: 'settings',
         name: 'Settings',
         component: () => import('@/views/SettingsView.vue'),
