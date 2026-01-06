@@ -10,7 +10,7 @@ CampusAssetManager/backend/app/models/sys_config.py
 - 声明式：使用SQLAlchemy ORM声明式定义表结构
 - 键值对：配置以config_key和config_value的形式存储
 
-作者：系统开发团队
+作者：CampusAssetManager开发团队
 日期：2025-01-05
 """
 

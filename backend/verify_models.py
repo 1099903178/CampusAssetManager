@@ -10,7 +10,7 @@ CampusAssetManager/backend/verify_models.py
 使用方法：
     python backend/verify_models.py
 
-作者：系统开发团队
+作者：CampusAssetManager开发团队
 日期：2025-01-05
 """
 

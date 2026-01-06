@@ -10,7 +10,7 @@ CampusAssetManager/backend/app/models/sys_user.py
 - 声明式：使用SQLAlchemy ORM声明式定义表结构
 - 关系映射：定义与其他表的外键关系
 
-作者：系统开发团队
+作者：CampusAssetManager开发团队
 日期：2025-01-05
 """
 

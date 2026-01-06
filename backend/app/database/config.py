@@ -11,7 +11,7 @@ CampusAssetManager/backend/app/database/config.py
 - 声明式：通过类属性定义配置
 - 封装清晰：提供简洁的数据库访问接口
 
-作者：系统开发团队
+作者：CampusAssetManager开发团队
 日期：2025-01-05
 """
 

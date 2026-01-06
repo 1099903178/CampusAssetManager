@@ -14,7 +14,7 @@ CampusAssetManager/backend/app/database/init_db.py
 使用方法：
     python -m backend.app.database.init_db
 
-作者：系统开发团队
+作者：CampusAssetManager开发团队
 日期：2025-01-05
 """
 
