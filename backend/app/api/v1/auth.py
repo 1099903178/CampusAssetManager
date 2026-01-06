@@ -30,7 +30,7 @@ router = APIRouter(prefix="/auth", tags=["认证"])
 auth_service = AuthService()
 
 
-@router.post("/login", response_model=TokenResponse, summary="用户登录")
+@router.post("/login", summary="用户登录")
 def login(
     login_data: UserLogin,
     db: Session = Depends(get_db)
@@ -58,7 +58,12 @@ def login(
     try:
         # 调用认证服务进行登录
         response = auth_service.login(login_data, db)
-        return response
+        # 返回统一格式的响应
+        return {
+            "code": 200,
+            "message": "登录成功",
+            "data": response
+        }
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -94,7 +99,7 @@ def logout():
     }
 
 
-@router.get("/user-info", response_model=UserInfo, summary="获取用户信息")
+@router.get("/user-info", summary="获取用户信息")
 def get_user_info(
     db: Session = Depends(get_db),
     # token: str = Depends(oauth2_scheme)

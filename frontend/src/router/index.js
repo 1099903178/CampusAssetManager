@@ -41,6 +41,12 @@ const routes = [
         meta: { title: '物品管理', requiresAuth: true }
       },
       {
+        path: 'category',
+        name: 'Category',
+        component: () => import('@/views/CategoryView.vue'),
+        meta: { title: '物品分类管理', requiresAuth: true }
+      },
+      {
         path: 'stock',
         name: 'Stock',
         component: () => import('@/views/StockView.vue'),
