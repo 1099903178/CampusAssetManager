@@ -18,6 +18,7 @@ CampusAssetManager/backend/app/database/init_db.py
 日期：2025-01-05
 """
 
+from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from .config import engine, Base
 from ..models import (
@@ -31,6 +32,7 @@ from ..models import (
     OperationLog,
     Config
 )
+from ..core.security import get_password_hash
 
 
 def init_database():
@@ -51,6 +53,55 @@ def init_database():
     print("[OK] 数据库表结构创建成功")
 
 
+def create_test_users(db: Session):
+    """
+    创建测试用户
+    
+    Args:
+        db (Session): 数据库会话
+    
+    说明：
+        - admin/admin123 (超级管理员)
+        - user/user123 (普通用户)
+    """
+    # 检查是否已存在admin用户
+    existing_admin = db.query(User).filter(User.username == "admin").first()
+    
+    if not existing_admin:
+        # 创建超级管理员
+        admin = User(
+            username="admin",
+            password_hash=get_password_hash("admin123"),
+            real_name="系统管理员",
+            role="super_admin",
+            phone="13800138000",
+            email="admin@campus.edu",
+            is_active=True
+        )
+        db.add(admin)
+        print("[OK] 创建超级管理员用户: admin/admin123")
+    
+    # 检查是否已存在test用户
+    existing_test = db.query(User).filter(User.username == "test").first()
+    
+    if not existing_test:
+        # 创建测试用户
+        test_user = User(
+            username="test",
+            password_hash=get_password_hash("test123"),
+            real_name="测试用户",
+            role="user",
+            phone="13900139000",
+            email="test@campus.edu",
+            is_active=True
+        )
+        db.add(test_user)
+        print("[OK] 创建测试用户: test/test123")
+    
+    # 提交更改
+    db.commit()
+
+
 def main():
     """
     主函数
@@ -64,6 +115,16 @@ def main():
         
         # 初始化数据库
         init_database()
+        
+        # 创建会话
+        db = Session(bind=engine)
+        
+        try:
+            # 创建测试用户
+            create_test_users(db)
+        finally:
+            # 关闭会话
+            db.close()
         
         print("=" * 50)
         print("数据库初始化完成！")

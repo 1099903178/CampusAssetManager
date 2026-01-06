@@ -82,10 +82,18 @@ export const useUserStore = defineStore('user', () => {
    * 清除用户信息和Token
    * 用于用户登出
    */
-  const logout = () => {
-    user.value = null
-    token.value = ''
-    localStorage.removeItem('token')
+  const logout = async () => {
+    try {
+      // 调用后端logout API (如果需要)
+      // await logout()
+    } catch (error) {
+      console.error('登出API调用失败:', error)
+    } finally {
+      // 无论API调用成功与否，都清除本地状态
+      user.value = null
+      token.value = ''
+      localStorage.removeItem('token')
+    }
   }
   
   /**

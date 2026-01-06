@@ -1,11 +1,9 @@
-"""
-CampusAssetManager - 校物通校园物品量化管理系统
-Python项目依赖配置文件
-
-用途：定义项目所需的所有Python包及其版本
-作者：系统开发团队
-日期：2025-01-05
-"""
+# CampusAssetManager - 校物通校园物品量化管理系统
+# Python项目依赖配置文件
+#
+# 用途：定义项目所需的所有Python包及其版本
+# 作者：CampusAssetManager开发团队
+# 日期：2026-01-06
 
 # Web框架
 fastapi==0.115.0
