@@ -12,6 +12,8 @@
  */
 
 import { createRouter, createWebHistory } from 'vue-router'
+import { useUserStore } from '@/stores'
+import { getUserInfo } from '@/api/auth'
 
 /**
  * 路由配置数组
@@ -95,25 +97,47 @@ const router = createRouter({
  * 开发模式：临时禁用登录验证以便快速测试
  * 生产环境：请取消注释以启用登录验证
  */
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   // 设置页面标题
   document.title = `${to.meta.title || '校园物品管理系统'} - 校物通`
+  
+  const userStore = useUserStore()
+  const token = localStorage.getItem('token')
   
   // ========== 生产模式：启用登录验证 ==========
   // 检查是否需要认证
   if (to.meta.requiresAuth) {
-    const token = localStorage.getItem('token')
     if (!token) {
       next({
         path: '/login',
         query: { redirect: to.fullPath }
       })
-    } else {
-      next()
+      return
     }
+    
+    // 如果有token但没有用户信息，尝试获取用户信息
+    if (token && !userStore.user) {
+      try {
+        const userInfo = await getUserInfo()
+        userStore.setUser(userInfo)
+        next()
+        return
+      } catch (error) {
+        console.error('获取用户信息失败:', error)
+        // 获取用户信息失败，清除token并跳转到登录页
+        await userStore.logout()
+        next({
+          path: '/login',
+          query: { redirect: to.fullPath }
+        })
+        return
+      }
+    }
+    
+    next()
   } else {
     // 如果已登录且访问登录页，重定向到首页
-    if (to.path === '/login' && localStorage.getItem('token')) {
+    if (to.path === '/login' && token) {
       next('/')
     } else {
       next()

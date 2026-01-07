@@ -13,6 +13,8 @@ CampusAssetManager/backend/app/services/goods_service.py
 - 获取物品详情
 - 更新物品信息
 - 删除物品（软删除）
+- 物品批量导入导出
+- 导入模板生成
 
 设计原则：
 - 面向对象：使用 GoodsService 类封装物品管理逻辑
@@ -26,6 +28,10 @@ CampusAssetManager/backend/app/services/goods_service.py
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from io import BytesIO
+from datetime import datetime
 
 from ..models.goods_category import GoodsCategory
 from ..models.goods_info import Goods
@@ -38,7 +44,11 @@ from ..schemas.goods import (
     GoodsUpdate,
     GoodsQuery,
     GoodsResponse,
-    GoodsListResponse
+    GoodsListResponse,
+    GoodsImportItem,
+    GoodsImportResponse,
+    GoodsImportError,
+    GoodsExportQuery
 )
 
 
@@ -527,9 +537,7 @@ class GoodsService:
         db: Session
     ) -> None:
         """
-        删除物品（软删除）
-        
-        注意：此操作为软删除，仅将物品的 status 字段设置为 2（报废）
+        删除物品（物理删除）
         
         Args:
             goods_id (int): 物品ID
@@ -548,10 +556,383 @@ class GoodsService:
         if not goods:
             raise ValueError("物品不存在")
         
-        # 软删除：设置状态为2（报废）
+        # 物理删除：从数据库中删除记录
         try:
-            goods.status = 2
+            db.delete(goods)
             db.commit()
         except Exception as e:
             db.rollback()
             raise Exception(f"删除物品失败: {str(e)}")
+    
+    # ==================== 物品导入导出管理 ====================
+    
+    def generate_import_template(self) -> BytesIO:
+        """
+        生成物品导入模板
+        
+        Returns:
+            BytesIO: Excel文件流
+        
+        Examples:
+            >>> service = GoodsService()
+            >>> excel_file = service.generate_import_template()
+        """
+        # 创建工作簿
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Template"
+        
+        # 设置表头（第1行）
+        headers = [
+            "物品名称*",
+            "物品编码*",
+            "分类编码*",
+            "规格型号",
+            "计量单位*",
+            "采购单价*",
+            "零售单价",
+            "物品描述",
+            "状态*"
+        ]
+        
+        # 写入表头
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num, value=header)
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+        
+        # 使用说明（合并单元格在表头右侧，只占用前4行，不影响数据读取）
+        ws.merge_cells(start_row=1, start_column=10, end_row=4, end_column=15)
+        note_cell = ws.cell(row=1, column=10)
+        note_text = "【使用说明】\n•必填(带*项)：名称、编码、分类、单位、单价\n•可选：规格、零售价、描述、状态(默认1)\n•状态值:1-正常 2-报废 3-维修\n•注意:分类不存在时会自动创建、编码唯一、金额≥0\n•示例:左侧3行"
+        note_cell.value = note_text
+        note_cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+        note_cell.font = Font(size=11)
+        note_cell.fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
+        
+        # 增加前4行的高度以显示完整说明
+        # ws.row_dimensions[1].height = 80
+        ws.row_dimensions[2].height = 25
+        ws.row_dimensions[3].height = 25
+        ws.row_dimensions[4].height = 25
+        
+        # 添加示例数据（第2-4行，共3行）
+        example_data = [
+            ["示例1：笔记本电脑", "NB_001", "BG_SB", "ThinkPad X1 Carbon", "台", "8000.00", "10000.00", "说明：ThinkPad X1系列高性能商务笔记本", "1"],
+            ["示例2：显示器", "DP_001", "BG_DP", "Dell 27英寸", "台", "1500.00", "1800.00", "说明：高清显示器", "2"],
+            ["示例3：打印机", "PR_001", "BG_SB", "HP LaserJet Pro", "台", "2000.00", "2500.00", "说明：激光打印机，适合日常办公使用", "3"]
+        ]
+        
+        # 写入示例数据
+        for row_num, row_data in enumerate(example_data, 2):
+            for col_num, value in enumerate(row_data, 1):
+                cell = ws.cell(row=row_num, column=col_num, value=value)
+                if row_num == 2:
+                    # 第一行示例数据高亮显示
+                    cell.fill = PatternFill(start_color="E7F3FF", end_color="E7F3FF", fill_type="solid")
+                    cell.font = Font(italic=True, color="004080")
+                elif row_num > 2:
+                    # 其他示例数据使用浅色背景
+                    cell.fill = PatternFill(start_color="DCE6F1", end_color="DCE6F1", fill_type="solid")
+                    cell.font = Font(italic=True, color="666666")
+        
+        # 导入读取起始行（示例数据从第2行开始，共3行，所以从第5行开始读取）
+        self.import_start_row = 5
+        
+        # 调整列宽
+        ws.column_dimensions['A'].width = 20
+        ws.column_dimensions['B'].width = 12
+        ws.column_dimensions['C'].width = 12
+        ws.column_dimensions['D'].width = 25
+        ws.column_dimensions['E'].width = 10
+        ws.column_dimensions['F'].width = 12
+        ws.column_dimensions['G'].width = 12
+        ws.column_dimensions['H'].width = 40
+        ws.column_dimensions['I'].width = 10
+        
+        # 保存到内存
+        file_stream = BytesIO()
+        wb.save(file_stream)
+        file_stream.seek(0)
+        
+        return file_stream
+    
+    def import_goods_from_excel(
+        self,
+        file_content: bytes,
+        db: Session
+    ) -> GoodsImportResponse:
+        """
+        从Excel文件批量导入物品
+        
+        Args:
+            file_content (bytes): Excel文件内容
+            db (Session): 数据库会话
+        
+        Returns:
+            GoodsImportResponse: 导入结果统计
+        
+        Raises:
+            ValueError: 文件格式错误
+        
+        Examples:
+            >>> service = GoodsService()
+            >>> result = service.import_goods_from_excel(file_bytes, db)
+        """
+        # 加载Excel文件
+        try:
+            wb = load_workbook(BytesIO(file_content))
+            ws = wb.active
+        except Exception as e:
+            raise ValueError(f"Excel文件格式错误: {str(e)}")
+        
+        # 统计变量
+        total_count = 0
+        success_count = 0
+        failed_count = 0
+        errors = []
+        
+        # 获取所有分类编码映射
+        categories = db.query(GoodsCategory).all()
+        category_map = {cat.category_code: cat.category_id for cat in categories}
+        
+        # 从第5行开始读取数据（第1行是表头，第2-4行是示例数据）
+        for row_num in range(5, ws.max_row + 1):
+            total_count += 1
+            
+            try:
+                # 读取单元格数据
+                goods_name = ws.cell(row=row_num, column=1).value
+                goods_code = ws.cell(row=row_num, column=2).value
+                category_code = ws.cell(row=row_num, column=3).value
+                specification = ws.cell(row=row_num, column=4).value
+                unit = ws.cell(row=row_num, column=5).value
+                purchase_price = ws.cell(row=row_num, column=6).value
+                retail_price = ws.cell(row=row_num, column=7).value
+                description = ws.cell(row=row_num, column=8).value
+                status = ws.cell(row=row_num, column=9).value
+                
+                # 数据验证
+                if not goods_name or not isinstance(goods_name, str):
+                    raise ValueError("物品名称不能为空")
+                if not goods_code or not isinstance(goods_code, str):
+                    raise ValueError("物品编码不能为空")
+                if not category_code or not isinstance(category_code, str):
+                    raise ValueError("分类编码不能为空")
+                if not unit or not isinstance(unit, str):
+                    raise ValueError("计量单位不能为空")
+                if purchase_price is None or purchase_price == '':
+                    raise ValueError("采购单价不能为空")
+                
+                # 转换数据类型
+                try:
+                    purchase_price = float(purchase_price)
+                    if purchase_price < 0:
+                        raise ValueError("采购单价不能为负数")
+                except (ValueError, TypeError):
+                    raise ValueError("采购单价格式错误")
+                
+                if retail_price:
+                    try:
+                        retail_price = float(retail_price)
+                        if retail_price < 0:
+                            raise ValueError("零售单价不能为负数")
+                    except (ValueError, TypeError):
+                        raise ValueError("零售单价格式错误")
+                    if retail_price == '':
+                        retail_price = None
+                else:
+                    retail_price = None
+                
+                if status:
+                    try:
+                        status = int(status)
+                        if status not in [1, 2, 3]:
+                            raise ValueError("状态必须是1、2或3")
+                    except (ValueError, TypeError):
+                        raise ValueError("状态格式错误")
+                else:
+                    status = 1
+                
+                # 检查分类编码是否存在，不存在则自动创建
+                if category_code not in category_map:
+                    # 自动创建新分类（一级分类，默认激活）
+                    new_category = GoodsCategory(
+                        category_name=category_code,
+                        category_code=category_code,
+                        parent_id=None,
+                        level=1,
+                        description=f"物品导入时自动创建的分类",
+                        sort_order=999,
+                        is_active=1
+                    )
+                    db.add(new_category)
+                    db.flush()
+                    
+                    # 更新映射表
+                    category_map[category_code] = new_category.category_id
+                    category_id = new_category.category_id
+                else:
+                    category_id = category_map[category_code]
+                
+                # 检查物品编码是否已存在
+                existing_goods = db.query(Goods).filter(
+                    Goods.goods_code == goods_code
+                ).first()
+                
+                if existing_goods:
+                    raise ValueError("物品编码已存在")
+                
+                # 创建物品对象
+                new_goods = Goods(
+                    goods_name=goods_name.strip(),
+                    goods_code=goods_code.strip(),
+                    category_id=category_id,
+                    specification=specification.strip() if specification else None,
+                    unit=unit.strip(),
+                    purchase_price=purchase_price,
+                    retail_price=retail_price,
+                    description=description.strip() if description else None,
+                    status=status
+                )
+                
+                db.add(new_goods)
+                db.flush()
+                success_count += 1
+                
+            except Exception as e:
+                failed_count += 1
+                goods_code = ws.cell(row=row_num, column=2).value or ""
+                errors.append(
+                    GoodsImportError(
+                        row=row_num,
+                        goods_code=str(goods_code),
+                        error_message=str(e)
+                    )
+                )
+        
+        # 提交事务
+        try:
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise Exception(f"导入失败: {str(e)}")
+        
+        return GoodsImportResponse(
+            total_count=total_count,
+            success_count=success_count,
+            failed_count=failed_count,
+            errors=errors
+        )
+    
+    def export_goods_to_excel(
+        self,
+        query: GoodsExportQuery,
+        db: Session
+    ) -> BytesIO:
+        """
+        导出物品列表到Excel
+        
+        Args:
+            query (GoodsExportQuery): 导出查询参数
+            db (Session): 数据库会话
+        
+        Returns:
+            BytesIO: Excel文件流
+        
+        Examples:
+            >>> service = GoodsService()
+            >>> excel_file = service.export_goods_to_excel(query, db)
+        """
+        # 构建查询
+        db_query = db.query(
+            Goods,
+            GoodsCategory.category_code,
+            GoodsCategory.category_name
+        ).outerjoin(
+            GoodsCategory,
+            Goods.category_id == GoodsCategory.category_id
+        )
+        
+        # 应用过滤条件
+        if query.search:
+            search_pattern = f"%{query.search}%"
+            db_query = db_query.filter(
+                or_(
+                    Goods.goods_name.like(search_pattern),
+                    Goods.goods_code.like(search_pattern)
+                )
+            )
+        
+        if query.category_id:
+            db_query = db_query.filter(Goods.category_id == query.category_id)
+        
+        if query.status:
+            db_query = db_query.filter(Goods.status == query.status)
+        
+        # 查询所有数据
+        results = db_query.all()
+        
+        # 创建工作簿（使用英文标题避免编码问题，但表头用中文）
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Goods List"
+        
+        # 设置表头（中文表头）
+        headers = [
+            "物品ID",
+            "物品名称",
+            "物品编码",
+            "分类编码",
+            "分类名称",
+            "规格型号",
+            "计量单位",
+            "采购单价",
+            "零售单价",
+            "物品描述",
+            "状态",
+            "创建时间",
+            "更新时间"
+        ]
+        
+        # 写入表头
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num, value=header)
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+        
+        # 写入数据
+        for row_num, (goods, category_code, category_name) in enumerate(results, 2):
+            status_map = {1: "正常", 2: "报废", 3: "维修中"}
+            
+            ws.cell(row=row_num, column=1, value=goods.goods_id)
+            ws.cell(row=row_num, column=2, value=goods.goods_name)
+            ws.cell(row=row_num, column=3, value=goods.goods_code)
+            ws.cell(row=row_num, column=4, value=category_code or "")
+            ws.cell(row=row_num, column=5, value=category_name or "")
+            ws.cell(row=row_num, column=6, value=goods.specification or "")
+            ws.cell(row=row_num, column=7, value=goods.unit)
+            ws.cell(row=row_num, column=8, value=goods.purchase_price)
+            ws.cell(row=row_num, column=9, value=goods.retail_price or "")
+            ws.cell(row=row_num, column=10, value=goods.description or "")
+            ws.cell(row=row_num, column=11, value=status_map.get(goods.status, ""))
+            
+            # 格式化时间
+            if goods.create_time:
+                ws.cell(row=row_num, column=12, value=goods.create_time.strftime("%Y-%m-%d %H:%M:%S"))
+            if goods.update_time:
+                ws.cell(row=row_num, column=13, value=goods.update_time.strftime("%Y-%m-%d %H:%M:%S"))
+        
+        # 调整列宽
+        column_widths = [10, 20, 20, 15, 20, 25, 15, 15, 15, 40, 10, 20, 20]
+        for col_num, width in enumerate(column_widths, 1):
+            ws.column_dimensions[chr(64 + col_num)].width = width
+        
+        # 保存到内存
+        file_stream = BytesIO()
+        wb.save(file_stream)
+        file_stream.seek(0)
+        
+        return file_stream
