@@ -5,6 +5,7 @@
  * 功能说明：
  * - 物品分类管理：查询、创建、更新、删除
  * - 物品信息管理：查询、创建、更新、删除
+ * - 物品导入导出：批量导入、导出、下载模板
  *
  * 作者：CampusAssetManager开发团队
  * 日期：2026-01-06
@@ -139,4 +140,49 @@ export const updateGoods = (goodsId, data) => {
  */
 export const deleteGoods = (goodsId) => {
   return http.delete(`/v1/goods/${goodsId}`)
+}
+
+// ==================== 物品导入导出管理 ====================
+
+/**
+ * 下载物品导入模板
+ *
+ * @returns {Promise} 返回Promise对象，响应为Blob类型
+ */
+export const downloadImportTemplate = () => {
+  return http.get('/v1/goods/import-template', {
+    responseType: 'blob'
+  })
+}
+
+/**
+ * 批量导入物品
+ *
+ * @param {File} file - Excel文件（.xlsx或.xls格式）
+ * @returns {Promise} 返回Promise对象
+ */
+export const importGoods = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return http.post('/v1/goods/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 导出物品列表
+ *
+ * @param {Object} params - 查询参数
+ * @param {string} params.search - 搜索关键词（物品名称、编码）
+ * @param {number} params.category_id - 分类ID（可选）
+ * @param {number} params.status - 状态筛选（1正常/2报废/3维修中）
+ * @returns {Promise} 返回Promise对象，响应为Blob类型
+ */
+export const exportGoods = (params = {}) => {
+  return http.get('/v1/goods/export', {
+    params: params,
+    responseType: 'blob'
+  })
 }

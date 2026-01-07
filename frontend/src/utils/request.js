@@ -81,6 +81,17 @@ service.interceptors.request.use(
 service.interceptors.response.use(
   (response) => {
     /**
+      * 如果是文件流响应（responseType === 'blob'），返回包含数据和响应头的对象
+      * 用于文件下载场景，需要从响应头提取文件名
+      */
+    if (response.config.responseType === 'blob') {
+      return {
+        data: response.data,
+        headers: response.headers
+      }
+    }
+    
+    /**
      * 从响应中提取数据
      * 后端返回格式：
      * {

@@ -13,6 +13,8 @@ CampusAssetManager/backend/app/api/v1/goods.py
 - 获取物品详情
 - 更新物品信息
 - 删除物品（软删除）
+- 物品批量导入导出
+- 下载导入模板
 
 设计原则：
 - 依赖注入：使用FastAPI的依赖注入系统
@@ -24,7 +26,9 @@ CampusAssetManager/backend/app/api/v1/goods.py
 日期：2026-01-06
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.responses import StreamingResponse
+from urllib.parse import quote
 from sqlalchemy.orm import Session
 
 from ...database.config import get_db
@@ -37,7 +41,9 @@ from ...schemas.goods import (
     GoodsUpdate,
     GoodsQuery,
     GoodsResponse,
-    GoodsListResponse
+    GoodsListResponse,
+    GoodsImportResponse,
+    GoodsExportQuery
 )
 from ...services.goods_service import GoodsService
 
@@ -46,6 +52,165 @@ router = APIRouter(prefix="/goods", tags=["物品管理"])
 
 # 创建物品服务实例
 goods_service = GoodsService()
+
+
+# ==================== 物品导入导出管理 ====================
+# 注意：这些路由必须在 /{goods_id} 路由之前定义，否则会被错误匹配
+
+@router.get("/import-template", summary="下载物品导入模板")
+def get_import_template():
+    """
+    下载物品导入模板接口
+    
+    返回Excel模板文件，包含表头和示例数据。
+    
+    Returns:
+        StreamingResponse: Excel文件流
+    
+    Examples:
+        GET /v1/goods/import-template
+    """
+    try:
+        # 调用服务层生成模板
+        excel_file = goods_service.generate_import_template()
+        
+        # 返回文件流（中文文件名使用URL编码）
+        filename = "物品导入模板.xlsx"
+        encoded_filename = quote(filename, safe='')
+        return StreamingResponse(
+            excel_file,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"生成模板失败: {str(e)}"
+        )
+
+
+@router.post("/import", summary="批量导入物品")
+def import_goods(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    批量导入物品接口
+    
+    从Excel文件批量导入物品，支持数据验证和错误提示。
+    
+    Args:
+        file (UploadFile): Excel文件（必须为.xlsx格式）
+        db (Session): 数据库会话（自动注入）
+    
+    Returns:
+        dict: 统一格式的响应 {code, message, data}
+        
+        data包含：
+        - total_count: 总记录数
+        - success_count: 成功导入数量
+        - failed_count: 失败数量
+        - errors: 错误详情列表
+    
+    Raises:
+        HTTPException: 文件格式错误或导入失败时返回
+    
+    Examples:
+        POST /v1/goods/import
+        Content-Type: multipart/form-data
+        file: goods.xlsx
+    """
+    try:
+        # 验证文件格式
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="不支持的文件格式，请上传Excel文件（.xlsx或.xls）"
+            )
+        
+        # 读取文件内容
+        file_content = file.file.read()
+        
+        # 调用服务层导入物品
+        result = goods_service.import_goods_from_excel(file_content, db)
+        
+        # 返回统一格式的响应
+        return {
+            "code": 200,
+            "message": f"导入完成，成功{result.success_count}条，失败{result.failed_count}条",
+            "data": result
+        }
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"导入物品失败: {str(e)}"
+        )
+
+
+@router.get("/export", summary="导出物品列表")
+def export_goods(
+    search: str = None,
+    category_id: int = None,
+    status: int = None,
+    db: Session = Depends(get_db)
+):
+    """
+    导出物品列表接口
+    
+    支持按条件筛选导出，导出为Excel文件。
+    
+    Args:
+        search (str): 搜索关键词（物品名称、编码）
+        category_id (int): 按分类筛选
+        status (int): 按状态筛选（1正常/2报废/3维修中）
+        db (Session): 数据库会话（自动注入）
+    
+    Returns:
+        StreamingResponse: Excel文件流
+    
+    Raises:
+        HTTPException: 导出失败时返回
+    
+    Examples:
+        GET /v1/goods/export
+        
+        GET /v1/goods/export?category_id=1&status=1
+    """
+    try:
+        # 构建导出查询参数
+        query = GoodsExportQuery(
+            search=search,
+            category_id=category_id,
+            status=status
+        )
+        
+        # 调用服务层导出物品
+        excel_file = goods_service.export_goods_to_excel(query, db)
+        
+        # 返回文件流（中文文件名使用URL编码）
+        filename = "物品列表.xlsx"
+        encoded_filename = quote(filename, safe='')
+        return StreamingResponse(
+            excel_file,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"导出物品失败: {str(e)}"
+        )
 
 
 # ==================== 物品分类管理 ====================

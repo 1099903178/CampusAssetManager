@@ -23,8 +23,13 @@ export const useUserStore = defineStore('user', () => {
   
   /**
    * 用户信息对象
+   * 从localStorage恢复用户信息，解决刷新后登录状态丢失问题
    */
-  const user = ref(null)
+  const user = ref(
+    localStorage.getItem('userInfo')
+      ? JSON.parse(localStorage.getItem('userInfo'))
+      : null
+  )
   
   /**
    * 访问令牌
@@ -66,6 +71,8 @@ export const useUserStore = defineStore('user', () => {
    */
   const setUser = (userInfo) => {
     user.value = userInfo
+    // 持久化用户信息到localStorage
+    localStorage.setItem('userInfo', JSON.stringify(userInfo))
   }
   
   /**
@@ -93,6 +100,7 @@ export const useUserStore = defineStore('user', () => {
       user.value = null
       token.value = ''
       localStorage.removeItem('token')
+      localStorage.removeItem('userInfo')
     }
   }
   

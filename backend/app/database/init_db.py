@@ -102,6 +102,50 @@ def create_test_users(db: Session):
     db.commit()
 
 
+def create_test_categories(db: Session):
+    """
+    创建测试分类
+    
+    Args:
+        db (Session): 数据库会话
+    
+    说明：
+        - 创建与导入模板示例数据匹配的分类
+    """
+    # 检查是否已存在分类数据
+    existing_categories = db.query(GoodsCategory).all()
+    
+    if not existing_categories:
+        # 创建办公设备分类
+        category_sb = GoodsCategory(
+            category_name="办公设备",
+            category_code="BG_SB",
+            parent_id=None,
+            level=1,
+            description="办公用品设备",
+            sort_order=1,
+            is_active=1
+        )
+        db.add(category_sb)
+        print("[OK] 创建分类: 办公设备 (BG_SB)")
+        
+        # 创建电子设备分类
+        category_dp = GoodsCategory(
+            category_name="电子设备",
+            category_code="BG_DP",
+            parent_id=None,
+            level=1,
+            description="电子数码设备",
+            sort_order=2,
+            is_active=1
+        )
+        db.add(category_dp)
+        print("[OK] 创建分类: 电子设备 (BG_DP)")
+        
+        # 提交更改
+        db.commit()
+
+
 def main():
     """
     主函数
@@ -122,6 +166,8 @@ def main():
         try:
             # 创建测试用户
             create_test_users(db)
+            # 创建测试分类
+            create_test_categories(db)
         finally:
             # 关闭会话
             db.close()

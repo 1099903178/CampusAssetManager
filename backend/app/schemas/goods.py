@@ -382,3 +382,141 @@ class GoodsQuery(BaseModel):
     search: Optional[str] = Field(default=None, description="搜索关键词（物品名称、编码）")
     category_id: Optional[int] = Field(default=None, description="按分类筛选")
     status: Optional[int] = Field(default=None, ge=1, le=3, description="按状态筛选")
+
+
+# ==================== 物品导入导出相关模型 ====================
+
+class GoodsImportItem(BaseModel):
+    """
+    物品导入项模型
+    
+    用于Excel导入时的单个物品数据验证
+    """
+    goods_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="物品名称",
+        examples=["笔记本电脑"]
+    )
+    goods_code: str = Field(
+        ...,
+        min_length=1,
+        max_length=50,
+        description="物品编码",
+        examples=["NB_001"]
+    )
+    category_code: str = Field(
+        ...,
+        min_length=1,
+        max_length=20,
+        description="分类编码",
+        examples=["BG_SB"]
+    )
+    specification: Optional[str] = Field(
+        default=None,
+        max_length=200,
+        description="规格型号",
+        examples=["ThinkPad X1 Carbon"]
+    )
+    unit: str = Field(
+        ...,
+        min_length=1,
+        max_length=20,
+        description="计量单位（个/台/箱等）",
+        examples=["台"]
+    )
+    purchase_price: float = Field(
+        ...,
+        ge=0,
+        description="采购单价",
+        examples=[8000.00]
+    )
+    retail_price: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="零售单价",
+        examples=[10000.00]
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="物品描述",
+        examples=["高性能商务笔记本"]
+    )
+    status: int = Field(
+        default=1,
+        ge=1,
+        le=3,
+        description="状态（1正常/2报废/3维修中）",
+        examples=[1]
+    )
+    
+    @validator('purchase_price', 'retail_price')
+    def validate_price(cls, v):
+        """
+        验证价格格式
+        
+        Args:
+            v: 价格数值
+        
+        Returns:
+            验证后的价格
+        
+        Raises:
+            ValueError: 价格格式不正确
+        """
+        if v is not None and v < 0:
+            raise ValueError('价格不能为负数')
+        return v
+    
+    @validator('status')
+    def validate_status(cls, v):
+        """
+        验证状态是否合法
+        
+        Args:
+            v: 状态数值
+        
+        Returns:
+            验证后的状态
+        
+        Raises:
+            ValueError: 状态不合法
+        """
+        if v not in [1, 2, 3]:
+            raise ValueError('状态必须是 1（正常）、2（报废）或 3（维修中）')
+        return v
+
+
+class GoodsImportError(BaseModel):
+    """
+    物品导入错误信息模型
+    
+    用于记录导入失败的错误详情
+    """
+    row: int = Field(..., description="行号", examples=[1])
+    goods_code: str = Field(..., description="物品编码", examples=["NB_001"])
+    error_message: str = Field(..., description="错误信息", examples=["分类编码不存在"])
+
+
+class GoodsImportResponse(BaseModel):
+    """
+    物品导入响应模型
+    
+    用于返回导入结果统计和错误详情
+    """
+    total_count: int = Field(..., description="总记录数", examples=[100])
+    success_count: int = Field(..., description="成功导入数量", examples=[95])
+    failed_count: int = Field(..., description="失败数量", examples=[5])
+    errors: List[GoodsImportError] = Field(..., description="错误详情列表")
+
+
+class GoodsExportQuery(BaseModel):
+    """
+    物品导出查询参数模型
+    
+    用于导出物品时的参数验证
+    """
+    search: Optional[str] = Field(default=None, description="搜索关键词（物品名称、编码）")
+    category_id: Optional[int] = Field(default=None, description="按分类筛选")
+    status: Optional[int] = Field(default=None, ge=1, le=3, description="按状态筛选")

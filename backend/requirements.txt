@@ -27,3 +27,4 @@ python-multipart==0.0.12
 
 # 工具库
 python-dotenv==1.0.1
+openpyxl==3.1.6

@@ -6,6 +6,7 @@
  * - 物品列表展示（支持分页、搜索）
  * - 物品搜索和筛选
  * - 物品增删改查（CRUD）
+ * - 物品批量导入导出
  * 
  * 设计原则：
  * - 声明式：使用Vue Composition API
@@ -66,6 +67,13 @@
       </el-form>
       
       <el-button v-if="canManage" type="primary" @click="handleAdd">新增物品</el-button>
+      
+      <!-- 导入导出按钮组 -->
+      <el-button-group v-if="canManage">
+        <el-button @click="handleDownloadTemplate">下载模板</el-button>
+        <el-button @click="handleImport">批量导入</el-button>
+        <el-button @click="handleExport">导出列表</el-button>
+      </el-button-group>
     </el-card>
     
     <!-- 物品列表 -->
@@ -189,9 +197,9 @@
         
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="formData.status">
-            <el-radio :label="1">正常</el-radio>
-            <el-radio :label="2">报废</el-radio>
-            <el-radio :label="3">维修中</el-radio>
+            <el-radio :value="1">正常</el-radio>
+            <el-radio :value="2">报废</el-radio>
+            <el-radio :value="3">维修中</el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
@@ -201,12 +209,76 @@
         <el-button type="primary" @click="handleSave" :loading="submitLoading">保存</el-button>
       </template>
     </el-dialog>
+    
+    <!-- 导入对话框 -->
+    <el-dialog
+      v-model="importDialogVisible"
+      title="批量导入物品"
+      width="500px"
+      @close="handleImportDialogClose"
+    >
+      <el-upload
+        ref="uploadRef"
+        drag
+        accept=".xlsx,.xls"
+        :auto-upload="false"
+        :on-change="handleFileChange"
+        :file-list="fileList"
+        :limit="1"
+      >
+        <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+        <div class="el-upload__text">
+          将文件拖到此处，或<em>点击上传</em>
+        </div>
+        <template #tip>
+          <div class="el-upload__tip">
+            只能上传 xlsx/xls 文件，且不超过 10MB
+          </div>
+        </template>
+      </el-upload>
+      
+      <template #footer>
+        <el-button @click="importDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleConfirmImport" :loading="importLoading">确认导入</el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 导入结果对话框 -->
+    <el-dialog
+      v-model="importResultDialogVisible"
+      title="导入结果"
+      width="600px"
+    >
+      <el-result
+        :icon="importResult.success_count > 0 ? 'success' : 'error'"
+        :title="`导入完成：成功 ${importResult.success_count} 条，失败 ${importResult.failed_count} 条`"
+        :sub-title="importResult.failed_count > 0 ? '请查看下方错误详情' : ''"
+      />
+      
+      <div v-if="importResult.errors.length > 0" class="error-list">
+        <el-descriptions title="错误详情" :column="1" border>
+          <el-descriptions-item
+            v-for="(error, index) in importResult.errors"
+            :key="index"
+            :label="`第${error.row}行`"
+          >
+            <el-tag type="danger">{{ error.goods_code }}</el-tag>
+            <span class="error-message">{{ error.error_message }}</span>
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
+      
+      <template #footer>
+        <el-button @click="importResultDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { UploadFilled } from '@element-plus/icons-vue'
 import TableComponent from '@/components/common/TableComponent.vue'
 import {
   getGoodsList,
@@ -214,7 +286,10 @@ import {
   createGoods,
   updateGoods,
   deleteGoods,
-  getGoodsCategories
+  getGoodsCategories,
+  downloadImportTemplate,
+  importGoods,
+  exportGoods
 } from '@/api'
 import { useUserStore } from '@/stores/user'
 
@@ -321,6 +396,46 @@ const formRules = {
  * 表单引用
  */
 const formRef = ref(null)
+
+/**
+ * 上传组件引用
+ */
+const uploadRef = ref(null)
+
+/**
+ * 导入对话框可见性
+ */
+const importDialogVisible = ref(false)
+
+/**
+ * 导入结果对话框可见性
+ */
+const importResultDialogVisible = ref(false)
+
+/**
+ * 导入加载状态
+ */
+const importLoading = ref(false)
+
+/**
+ * 文件列表
+ */
+const fileList = ref([])
+
+/**
+ * 当前上传的文件
+ */
+const currentFile = ref(null)
+
+/**
+ * 导入结果
+ */
+const importResult = reactive({
+  total_count: 0,
+  success_count: 0,
+  failed_count: 0,
+  errors: []
+})
 
 /**
  * 加载物品列表
@@ -431,7 +546,7 @@ const handleEdit = async (row) => {
  */
 const handleDelete = (row) => {
   ElMessageBox.confirm(
-    `确定要删除物品"${row.goods_name}"吗？删除后该物品状态将变为报废。`,
+    `确定要删除物品"${row.goods_name}"吗？删除后该物品将被永久删除，无法恢复。`,
     '删除确认',
     {
       type: 'warning',
@@ -513,6 +628,177 @@ const handleDialogClose = () => {
     description: '',
     status: 1
   })
+}
+
+/**
+ * 从 Content-Disposition 响应头中提取文件名
+ *
+ * @param {string} contentDisposition - Content-Disposition 响应头
+ * @returns {string} 文件名
+ */
+const getFilenameFromContentDisposition = (contentDisposition) => {
+  if (!contentDisposition) return 'download.xlsx'
+  
+  // 尝试匹配 filename*=UTF-8''encoded_filename
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''(.+)/i)
+  if (utf8Match) {
+    // URL 解码
+    try {
+      return decodeURIComponent(utf8Match[1])
+    } catch (e) {
+      console.error('文件名解码失败:', e)
+    }
+  }
+  
+  // 尝试匹配 filename="filename"
+  const quoteMatch = contentDisposition.match(/filename="(.+)"/i)
+  if (quoteMatch) {
+    return quoteMatch[1]
+  }
+  
+  // 尝试匹配 filename=filename
+  const simpleMatch = contentDisposition.match(/filename=(.+)/i)
+  if (simpleMatch) {
+    return simpleMatch[1]
+  }
+  
+  return 'download.xlsx'
+}
+
+/**
+ * 下载导入模板
+ */
+const handleDownloadTemplate = async () => {
+  try {
+    const response = await downloadImportTemplate()
+    
+    // 从响应头提取文件名
+    const contentDisposition = response.headers?.['content-disposition']
+    const filename = getFilenameFromContentDisposition(contentDisposition)
+    
+    // 创建下载链接
+    const url = window.URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('模板下载成功')
+  } catch (error) {
+    ElMessage.error('模板下载失败')
+  }
+}
+
+/**
+ * 处理导入按钮点击
+ */
+const handleImport = () => {
+  importDialogVisible.value = true
+}
+
+/**
+ * 处理文件选择
+ */
+const handleFileChange = (file) => {
+  const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls')
+  const isLt10M = file.size / 1024 / 1024 < 10
+  
+  if (!isExcel) {
+    ElMessage.error('只能上传 Excel 文件！')
+    fileList.value = []
+    return false
+  }
+  
+  if (!isLt10M) {
+    ElMessage.error('上传文件大小不能超过 10MB！')
+    fileList.value = []
+    return false
+  }
+  
+  currentFile.value = file
+  return true
+}
+
+/**
+ * 处理导入对话框关闭
+ */
+const handleImportDialogClose = () => {
+  fileList.value = []
+  currentFile.value = null
+  uploadRef.value?.clearFiles()
+}
+
+/**
+ * 确认导入
+ */
+const handleConfirmImport = async () => {
+  if (!currentFile.value) {
+    ElMessage.warning('请选择要导入的文件')
+    return
+  }
+  
+  try {
+    importLoading.value = true
+    const formData = new FormData()
+    formData.append('file', currentFile.value.raw)
+    
+    const response = await importGoods(currentFile.value.raw)
+    
+    // 显示导入结果
+    Object.assign(importResult, {
+      total_count: response.total_count,
+      success_count: response.success_count,
+      failed_count: response.failed_count,
+      errors: response.errors || []
+    })
+    
+    importDialogVisible.value = false
+    importResultDialogVisible.value = true
+    
+    // 刷新列表
+    if (response.success_count > 0) {
+      loadGoodsList()
+    }
+  } catch (error) {
+    ElMessage.error(error.response?.data?.detail || '导入失败')
+  } finally {
+    importLoading.value = false
+  }
+}
+
+/**
+ * 处理导出
+ */
+const handleExport = async () => {
+  try {
+    ElMessage.info('正在导出，请稍候...')
+    
+    const response = await exportGoods({
+      search: searchForm.search || undefined,
+      category_id: searchForm.category_id || undefined,
+      status: searchForm.status || undefined
+    })
+    
+    // 从响应头提取文件名
+    const contentDisposition = response.headers?.['content-disposition']
+    const filename = getFilenameFromContentDisposition(contentDisposition)
+    
+    // 创建下载链接
+    const url = window.URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    ElMessage.success('导出成功')
+  } catch (error) {
+    ElMessage.error('导出失败')
+  }
 }
 
 /**
