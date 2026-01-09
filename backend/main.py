@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
 from app.api.v1 import auth, users, goods, stock
+from app.api.v1 import statistics
 from app.database.config import engine, Base
 
 # ==================== 创建FastAPI应用 ====================
@@ -78,6 +79,13 @@ app.include_router(
     stock.router,
     prefix="/v1",
     tags=["库存管理"]
+)
+
+# 注册统计路由
+app.include_router(
+    statistics.router,
+    prefix="/v1",
+    tags=["统计数据"]
 )
 
 # ==================== 数据库初始化 ====================

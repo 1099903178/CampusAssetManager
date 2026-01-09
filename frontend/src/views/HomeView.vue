@@ -6,31 +6,55 @@
  * - 显示系统概览信息
  * - 显示快捷操作入口
  * - 显示系统公告
+ * - 支持数据刷新
  * 
  * 作者：CampusAssetManager开发团队
  * 日期：2026-01-05
+ * 更新日期：2026-01-09
  */
 
 <template>
   <div class="home-container">
-      <el-row :gutter="20" class="stat-row">
-        <!-- 统计卡片 -->
-        <el-col :xs="24" :sm="12" :md="12" :lg="6" :xl="6" v-for="stat in statistics" :key="stat.title">
-          <el-card class="stat-card">
-            <div class="stat-content">
-              <div class="stat-icon" :style="{ background: stat.color }">
-                <el-icon :size="32">
-                  <component :is="stat.icon" />
-                </el-icon>
+      <!-- 统计卡片区域 -->
+      <el-card class="statistics-card">
+        <template #header>
+          <div class="card-header">
+            <span>数据概览</span>
+            <el-button
+              type="primary"
+              :icon="RefreshRight"
+              @click="refreshData"
+              :loading="loading"
+              size="small"
+              circle
+            />
+          </div>
+        </template>
+        
+        <el-row :gutter="20" class="stat-row">
+          <!-- 统计卡片 -->
+          <el-col :xs="24" :sm="12" :md="12" :lg="6" :xl="6" v-for="stat in statistics" :key="stat.title">
+            <el-card class="stat-card">
+              <div class="stat-content">
+                <div class="stat-icon" :style="{ background: stat.color }">
+                  <el-icon :size="32">
+                    <component :is="stat.icon" />
+                  </el-icon>
+                </div>
+                <div class="stat-info">
+                  <div class="stat-value">{{ stat.value }}</div>
+                  <div class="stat-label">{{ stat.title }}</div>
+                </div>
               </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ stat.value }}</div>
-                <div class="stat-label">{{ stat.title }}</div>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
+            </el-card>
+          </el-col>
+        </el-row>
+        
+        <!-- 数据更新时间 -->
+        <div v-if="updateTime" class="update-time">
+          数据更新时间：{{ updateTime }}
+        </div>
+      </el-card>
       
       <!-- 快捷操作 -->
       <el-card class="quick-actions" style="margin-top: 20px;">
@@ -80,15 +104,11 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, markRaw } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores'
-import {
-  Box,
-  ShoppingCart,
-  DocumentChecked,
-  DataLine
-} from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { Box, ShoppingCart, DocumentChecked, WarningFilled, RefreshRight } from '@element-plus/icons-vue'
+import { getDataOverview } from '@/api/statistics'
 
 /**
  * 路由实例
@@ -96,39 +116,50 @@ import {
 const router = useRouter()
 
 /**
- * 用户Store
- */
-const userStore = useUserStore()
-
-/**
  * 统计数据
  */
-const statistics = [
+const statistics = ref([
   {
     title: '物品总数',
-    value: '1,234',
-    icon: Box,
+    value: '0',
+    icon: markRaw(Box),
     color: '#409eff'
   },
   {
-    title: '今日入库',
-    value: '56',
-    icon: ShoppingCart,
+    title: '库存总数',
+    value: '0',
+    icon: markRaw(ShoppingCart),
     color: '#67c23a'
   },
   {
-    title: '今日出库',
-    value: '23',
-    icon: DocumentChecked,
+    title: '今日入库',
+    value: '0',
+    icon: markRaw(DocumentChecked),
     color: '#e6a23c'
   },
   {
-    title: '盘点次数',
-    value: '8',
-    icon: DataLine,
+    title: '今日出库',
+    value: '0',
+    icon: markRaw(DocumentChecked),
+    color: '#909399'
+  },
+  {
+    title: '预警数量',
+    value: '0',
+    icon: markRaw(WarningFilled),
     color: '#f56c6c'
   }
-]
+])
+
+/**
+ * 数据更新时间
+ */
+const updateTime = ref('')
+
+/**
+ * 加载状态
+ */
+const loading = ref(false)
 
 /**
  * 快捷操作
@@ -155,7 +186,7 @@ const actions = [
   {
     name: '统计报表',
     path: '/statistics',
-    icon: DataLine,
+    icon: ShoppingCart,
     type: 'danger'
   }
 ]
@@ -171,8 +202,8 @@ const notices = [
   },
   {
     title: '新功能发布',
-    content: '系统新增了移动端适配功能，支持手机访问。欢迎大家使用并提出宝贵意见。',
-    date: '2026-01-04'
+    content: '系统新增了数据概览功能，支持实时统计物品总数、库存总数、今日入库出库量和预警数量。',
+    date: '2026-01-09'
   },
   {
     title: '数据安全提醒',
@@ -182,6 +213,45 @@ const notices = [
 ]
 
 /**
+ * 获取统计数据
+ */
+const loadStatistics = async () => {
+  try {
+    loading.value = true
+    const response = await getDataOverview()
+    
+    // request.js的响应拦截器已经提取了data字段，所以response就是数据对象本身
+    if (response && response.total_goods !== undefined) {
+      // 更新统计数据
+      statistics.value[0].value = response.total_goods?.toLocaleString() || '0'
+      statistics.value[1].value = response.total_stock?.toLocaleString() || '0'
+      statistics.value[2].value = response.today_stock_in?.toLocaleString() || '0'
+      statistics.value[3].value = response.today_stock_out?.toLocaleString() || '0'
+      statistics.value[4].value = response.warning_count?.toLocaleString() || '0'
+      
+      // 更新时间
+      updateTime.value = response.update_time || ''
+      
+      ElMessage.success('数据加载成功')
+    } else {
+      ElMessage.error('获取统计数据失败')
+    }
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
+    ElMessage.error('获取统计数据失败，请稍后重试')
+  } finally {
+    loading.value = false
+  }
+}
+
+/**
+ * 刷新数据
+ */
+const refreshData = () => {
+  loadStatistics()
+}
+
+/**
  * 处理快捷操作
  * 
  * @param {string} path - 跳转路径
@@ -189,6 +259,13 @@ const notices = [
 const handleAction = (path) => {
   router.push(path)
 }
+
+/**
+ * 组件挂载时加载统计数据
+ */
+onMounted(() => {
+  loadStatistics()
+})
 </script>
 
 <style scoped>
@@ -208,6 +285,10 @@ const handleAction = (path) => {
 /**
  * 统计卡片
  */
+.statistics-card {
+  margin-bottom: 20px;
+}
+
 .stat-card {
   width: 100%;
   margin-bottom: 20px;
@@ -251,6 +332,18 @@ const handleAction = (path) => {
 .stat-label {
   font-size: 14px;
   color: #909399;
+}
+
+/**
+ * 数据更新时间
+ */
+.update-time {
+  text-align: right;
+  font-size: 12px;
+  color: #909399;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ebeef5;
 }
 
 /**
