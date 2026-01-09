@@ -55,10 +55,8 @@ service.interceptors.request.use(
      * 添加请求时间戳，防止浏览器缓存
      */
     if (config.method === 'get') {
-      config.params = {
-        ...config.params,
-        _t: Date.now()
-      }
+      config.params = config.params || {}
+      config.params._t = Date.now()
     }
     
     return config

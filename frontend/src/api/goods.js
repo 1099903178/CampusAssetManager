@@ -142,6 +142,20 @@ export const deleteGoods = (goodsId) => {
   return http.delete(`/v1/goods/${goodsId}`)
 }
 
+// ==================== 库存管理 ====================
+
+/**
+ * 获取库存列表（分页）
+ *
+ * @param {Object} params - 查询参数
+ * @param {number} params.page - 页码
+ * @param {number} params.page_size - 每页数量
+ * @returns {Promise} 返回Promise对象
+ */
+export const getStockList = (params) => {
+  return http.get(`/v1/stock/list`, params)
+}
+
 // ==================== 物品导入导出管理 ====================
 
 /**

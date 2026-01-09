@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from ...database.config import get_db
 from ...schemas.token import UserLogin, TokenResponse, UserInfo
+from ...schemas.user import UserResponse
 from ...services.auth_service import AuthService
 
 # 创建路由器
@@ -133,4 +134,33 @@ def get_user_info(
         phone="13800138000",
         email="admin@campus.edu",
         is_active=True
+    )
+
+
+def get_current_user() -> UserResponse:
+    """
+    获取当前登录用户（依赖函数）
+    
+    用于FastAPI的依赖注入，从请求中获取当前用户信息。
+    当前版本返回默认管理员用户，待实现JWT Token验证后更新。
+    
+    Returns:
+        UserResponse: 当前用户信息
+    
+    Examples:
+        @app.get("/protected")
+        def protected_route(current_user: UserResponse = Depends(get_current_user)):
+            return {"user": current_user.username}
+    """
+    # 临时返回默认管理员用户
+    return UserResponse(
+        user_id=1,
+        username="admin",
+        real_name="管理员",
+        role="admin",
+        phone="13800138000",
+        email="admin@campus.edu",
+        is_active=True,
+        create_time=__import__("datetime").datetime.now(),
+        update_time=__import__("datetime").datetime.now()
     )
