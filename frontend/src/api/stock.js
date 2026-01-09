@@ -5,65 +5,32 @@
  * 功能说明：
  * - 入库操作
  * - 出库操作
- * - 获取库存列表
- * - 库存盘点
+ * - 获取入库记录列表
+ * - 获取出库记录列表
+ * - 获取入库详情
+ * - 获取出库详情
  * 
  * 作者：CampusAssetManager开发团队
- * 日期：2026-01-05
+ * 日期：2026-01-07
  */
 
 import http from '@/utils/request'
 
 /**
- * 获取库存列表（分页）
- * 
- * @param {Object} params - 查询参数
- * @param {number} params.page - 页码
- * @param {number} params.page_size - 每页数量
- * @param {number} params.goods_id - 物品ID（可选）
- * @param {string} params.goods_name - 物品名称（可选，模糊搜索）
- * @returns {Promise} 返回Promise对象
- */
-export const getStockList = (params) => {
-  return http.get('/v1/stock/', params)
-}
-
-/**
- * 获取物品库存详情
- * 
- * @param {number} stockId - 库存ID
- * @returns {Promise} 返回Promise对象
- */
-export const getStockDetail = (stockId) => {
-  return http.get(`/v1/stock/${stockId}`)
-}
-
-/**
- * 入库操作
+ * 创建入库记录
  * 
  * @param {Object} data - 入库数据
  * @param {number} data.goods_id - 物品ID
- * @param {number} data.quantity - 入库数量
- * @param {string} data.batch_no - 批次号
+ * @param {number} data.in_quantity - 入库数量
+ * @param {number} data.unit_price - 入库单价
+ * @param {number} data.total_amount - 入库总金额
+ * @param {string} data.batch_no - 批次号（可选）
+ * @param {string} data.supplier - 供应商（可选）
  * @param {string} data.remark - 备注（可选）
  * @returns {Promise} 返回Promise对象
  */
-export const stockIn = (data) => {
+export const createStockIn = (data) => {
   return http.post('/v1/stock/in', data)
-}
-
-/**
- * 出库操作
- * 
- * @param {Object} data - 出库数据
- * @param {number} data.goods_id - 物品ID
- * @param {number} data.quantity - 出库数量
- * @param {string} data.target - 出库目标
- * @param {string} data.remark - 备注（可选）
- * @returns {Promise} 返回Promise对象
- */
-export const stockOut = (data) => {
-  return http.post('/v1/stock/out', data)
 }
 
 /**
@@ -72,12 +39,42 @@ export const stockOut = (data) => {
  * @param {Object} params - 查询参数
  * @param {number} params.page - 页码
  * @param {number} params.page_size - 每页数量
- * @param {Date} params.start_date - 开始日期（可选）
- * @param {Date} params.end_date - 结束日期（可选）
+ * @param {string} params.search - 搜索关键词（入库单号、物品名称，可选）
+ * @param {number} params.goods_id - 按物品ID筛选（可选）
+ * @param {string} params.start_date - 开始日期（YYYY-MM-DD，可选）
+ * @param {string} params.end_date - 结束日期（YYYY-MM-DD，可选）
  * @returns {Promise} 返回Promise对象
  */
 export const getStockInList = (params) => {
-  return http.get('/v1/stock/in/records', params)
+  return http.get('/v1/stock/in', { params })
+}
+
+/**
+ * 获取入库详情
+ * 
+ * @param {number} inId - 入库记录ID
+ * @returns {Promise} 返回Promise对象
+ */
+export const getStockInDetail = (inId) => {
+  return http.get(`/v1/stock/in/${inId}`)
+}
+
+/**
+ * 创建出库记录
+ * 
+ * @param {Object} data - 出库数据
+ * @param {number} data.goods_id - 物品ID
+ * @param {number} data.out_quantity - 出库数量
+ * @param {number} data.unit_price - 出库单价
+ * @param {number} data.total_amount - 出库总金额
+ * @param {string} data.receiver - 接收人（可选）
+ * @param {string} data.department - 接收部门（可选）
+ * @param {string} data.purpose - 用途说明（可选）
+ * @param {string} data.remark - 备注（可选）
+ * @returns {Promise} 返回Promise对象
+ */
+export const createStockOut = (data) => {
+  return http.post('/v1/stock/out', data)
 }
 
 /**
@@ -86,56 +83,22 @@ export const getStockInList = (params) => {
  * @param {Object} params - 查询参数
  * @param {number} params.page - 页码
  * @param {number} params.page_size - 每页数量
- * @param {Date} params.start_date - 开始日期（可选）
- * @param {Date} params.end_date - 结束日期（可选）
+ * @param {string} params.search - 搜索关键词（出库单号、物品名称，可选）
+ * @param {number} params.goods_id - 按物品ID筛选（可选）
+ * @param {string} params.start_date - 开始日期（YYYY-MM-DD，可选）
+ * @param {string} params.end_date - 结束日期（YYYY-MM-DD，可选）
  * @returns {Promise} 返回Promise对象
  */
 export const getStockOutList = (params) => {
-  return http.get('/v1/stock/out/records', params)
+  return http.get('/v1/stock/out', { params })
 }
 
 /**
- * 创建盘点单
+ * 获取出库详情
  * 
- * @param {Object} data - 盘点数据
- * @param {string} data.check_name - 盘点单名称
- * @param {string} data.check_date - 盘点日期
- * @param {string} data.remark - 备注（可选）
+ * @param {number} outId - 出库记录ID
  * @returns {Promise} 返回Promise对象
  */
-export const createCheck = (data) => {
-  return http.post('/v1/stock/check', data)
-}
-
-/**
- * 获取盘点列表（分页）
- * 
- * @param {Object} params - 查询参数
- * @param {number} params.page - 页码
- * @param {number} params.page_size - 每页数量
- * @returns {Promise} 返回Promise对象
- */
-export const getCheckList = (params) => {
-  return http.get('/v1/stock/check', params)
-}
-
-/**
- * 获取盘点详情
- * 
- * @param {number} checkId - 盘点单ID
- * @returns {Promise} 返回Promise对象
- */
-export const getCheckDetail = (checkId) => {
-  return http.get(`/v1/stock/check/${checkId}`)
-}
-
-/**
- * 提交盘点结果
- * 
- * @param {number} checkId - 盘点单ID
- * @param {Array} data - 盘点明细
- * @returns {Promise} 返回Promise对象
- */
-export const submitCheck = (checkId, data) => {
-  return http.post(`/v1/stock/check/${checkId}/submit`, data)
+export const getStockOutDetail = (outId) => {
+  return http.get(`/v1/stock/out/${outId}`)
 }
