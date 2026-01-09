@@ -15,8 +15,17 @@
 import http from '@/utils/request'
 
 /**
+ * 获取数据概览
+ *
+ * @returns {Promise} 返回Promise对象，包含物品总数、库存总数、今日入库、今日出库、预警数量等
+ */
+export const getDataOverview = () => {
+  return http.get('/v1/statistics/overview')
+}
+
+/**
  * 获取库存统计概览
- * 
+ *
  * @returns {Promise} 返回Promise对象
  */
 export const getStockOverview = () => {
