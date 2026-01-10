@@ -55,7 +55,10 @@ service.interceptors.request.use(
      * 添加请求时间戳，防止浏览器缓存
      */
     if (config.method === 'get') {
-      config.params = config.params || {}
+      // 确保params存在且不为undefined，避免参数丢失
+      if (!config.params || config.params === undefined) {
+        config.params = {}
+      }
       config.params._t = Date.now()
     }
     
@@ -215,10 +218,16 @@ export const http = {
    * @returns {Promise} 返回Promise对象
    */
   get(url, params = {}, config = {}) {
-    return service.get(url, {
-      params,
-      ...config
-    })
+    // 确保params是一个对象，避免undefined
+    const requestParams = params || {}
+    
+    // 创建完整配置对象
+    const fullConfig = {
+      ...config,
+      params: requestParams
+    }
+    
+    return service(url, fullConfig)
   },
   
   /**

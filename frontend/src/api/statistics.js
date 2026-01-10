@@ -1,13 +1,14 @@
 /**
  * CampusAssetManager/frontend/src/api/statistics.js
  * 统计报表相关 API
- * 
+ *
  * 功能说明：
- * - 获取库存统计
- * - 获取出入库统计
- * - 获取物品分类统计
+ * - 获取数据概览统计
+ * - 获取库存趋势统计
+ * - 获取物品排行榜统计
+ * - 获取分类统计
  * - 导出报表
- * 
+ *
  * 作者：CampusAssetManager开发团队
  * 日期：2026-01-05
  */
@@ -24,39 +25,59 @@ export const getDataOverview = () => {
 }
 
 /**
- * 获取库存统计概览
+ * 获取库存趋势统计
  *
- * @returns {Promise} 返回Promise对象
- */
-export const getStockOverview = () => {
-  return http.get('/v1/statistics/stock-overview')
-}
-
-/**
- * 获取物品分类统计
- * 
- * @returns {Promise} 返回Promise对象
- */
-export const getCategoryStatistics = () => {
-  return http.get('/v1/statistics/category')
-}
-
-/**
- * 获取出入库趋势统计
- * 
  * @param {Object} params - 查询参数
- * @param {string} params.start_date - 开始日期
- * @param {string} params.end_date - 结束日期
- * @param {string} params.type - 类型（in/out）
- * @returns {Promise} 返回Promise对象
+ * @param {string} params.start_date - 开始日期（YYYY-MM-DD格式，可选）
+ * @param {string} params.end_date - 结束日期（YYYY-MM-DD格式，可选）
+ * @param {number} params.goods_id - 物品ID（可选）
+ * @returns {Promise} 返回Promise对象，包含库存趋势数据
  */
-export const getTrendStatistics = (params) => {
-  return http.get('/v1/statistics/trend', params)
+export const getStockTrend = (params = {}) => {
+  // 直接构建查询参数
+  const queryParams = new URLSearchParams()
+  if (params.start_date) {
+    queryParams.append('start_date', params.start_date)
+  }
+  if (params.end_date) {
+    queryParams.append('end_date', params.end_date)
+  }
+  if (params.goods_id) {
+    queryParams.append('goods_id', params.goods_id)
+  }
+  
+  const queryString = queryParams.toString()
+  const url = `/v1/statistics/stock-trend${queryString ? '?' + queryString : ''}`
+  
+  return http.get(url)
+}
+
+/**
+ * 获取物品排行榜统计
+ *
+ * @param {Object} params - 查询参数
+ * @param {string} params.ranking_type - 排行榜类型（in/入库，out/出库）
+ * @param {number} params.top_n - Top N数量（1-100）
+ * @returns {Promise} 返回Promise对象，包含物品排行榜数据
+ */
+export const getGoodsRanking = (params = { ranking_type: 'in', top_n: 10 }) => {
+  return http.get('/v1/statistics/goods-ranking', params)
+}
+
+/**
+ * 获取分类统计
+ *
+ * @param {Object} params - 查询参数
+ * @param {string} params.stats_type - 统计类型（stock/库存，in/入库）
+ * @returns {Promise} 返回Promise对象，包含分类统计数据
+ */
+export const getCategoryStats = (params = { stats_type: 'stock' }) => {
+  return http.get('/v1/statistics/category-stats', params)
 }
 
 /**
  * 获取库存预警列表
- * 
+ *
  * @returns {Promise} 返回Promise对象
  */
 export const getStockAlert = () => {
@@ -65,7 +86,7 @@ export const getStockAlert = () => {
 
 /**
  * 导出入库报表
- * 
+ *
  * @param {Object} params - 查询参数
  * @param {string} params.start_date - 开始日期
  * @param {string} params.end_date - 结束日期
@@ -78,7 +99,7 @@ export const exportStockReport = (params) => {
 
 /**
  * 导出盘点报告
- * 
+ *
  * @param {number} checkId - 盘点单ID
  * @returns {Promise} 返回Promise对象
  */
