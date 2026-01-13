@@ -21,9 +21,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
-from app.api.v1 import auth, users, goods, stock
+from app.api.v1 import auth, users, goods, stock, system
 from app.api.v1 import statistics
 from app.database.config import engine, Base
+from app.middleware.operation_log import OperationLogMiddleware
 
 # ==================== 创建FastAPI应用 ====================
 
@@ -50,6 +51,9 @@ app.add_middleware(
     allow_methods=["*"],  # 允许所有HTTP方法
     allow_headers=["*"],  # 允许所有请求头
 )
+
+# 注册操作日志记录中间件
+app.add_middleware(OperationLogMiddleware)
 
 # ==================== 路由注册 ====================
 
@@ -79,6 +83,13 @@ app.include_router(
     stock.router,
     prefix="/v1",
     tags=["库存管理"]
+)
+
+# 注册系统管理路由
+app.include_router(
+    system.router,
+    prefix="/v1",
+    tags=["系统管理"]
 )
 
 # 注册统计路由

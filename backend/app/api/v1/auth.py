@@ -16,19 +16,50 @@ CampusAssetManager/backend/app/api/v1/auth.py
 日期：2026-01-06
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 
 from ...database.config import get_db
 from ...schemas.token import UserLogin, TokenResponse, UserInfo
 from ...schemas.user import UserResponse
 from ...services.auth_service import AuthService
+from ...core.security import decode_access_token
 
 # 创建路由器
 router = APIRouter(prefix="/auth", tags=["认证"])
 
 # 创建认证服务实例（在实际应用中，这里应该使用依赖注入）
 auth_service = AuthService()
+
+
+def get_token_from_header(authorization: str = Header(None)) -> str:
+    """
+    从请求头中获取Token
+    
+    Args:
+        authorization (str): Authorization header值
+    
+    Returns:
+        str: Token字符串
+    
+    Raises:
+        HTTPException: Token不存在或格式错误
+    """
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="未提供认证Token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token格式错误，应为Bearer Token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return authorization.split(" ")[1]
 
 
 @router.post("/login", summary="用户登录")
@@ -137,30 +168,70 @@ def get_user_info(
     )
 
 
-def get_current_user() -> UserResponse:
+def get_current_user(
+    authorization: str = Depends(get_token_from_header),
+    db: Session = Depends(get_db)
+) -> UserResponse:
     """
     获取当前登录用户（依赖函数）
     
     用于FastAPI的依赖注入，从请求中获取当前用户信息。
-    当前版本返回默认管理员用户，待实现JWT Token验证后更新。
+    从JWT Token中解析用户信息并查询数据库获取完整用户信息。
+    
+    Args:
+        authorization (str): Token字符串（自动注入）
+        db (Session): 数据库会话（自动注入）
     
     Returns:
         UserResponse: 当前用户信息
+    
+    Raises:
+        HTTPException: Token无效或用户不存在
     
     Examples:
         @app.get("/protected")
         def protected_route(current_user: UserResponse = Depends(get_current_user)):
             return {"user": current_user.username}
     """
-    # 临时返回默认管理员用户
-    return UserResponse(
-        user_id=1,
-        username="admin",
-        real_name="管理员",
-        role="admin",
-        phone="13800138000",
-        email="admin@campus.edu",
-        is_active=True,
-        create_time=__import__("datetime").datetime.now(),
-        update_time=__import__("datetime").datetime.now()
-    )
+    try:
+        # 解码Token
+        payload = decode_access_token(authorization)
+        username = payload.get("sub")
+        
+        if not username:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token中缺少用户名信息",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # 从数据库查询用户信息
+        user = auth_service.get_user_by_username(username, db)
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="用户不存在",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # 返回用户信息
+        return UserResponse(
+            user_id=user.user_id,
+            username=user.username,
+            real_name=user.real_name,
+            role=user.role,
+            phone=user.phone,
+            email=user.email,
+            is_active=user.is_active,
+            create_time=user.create_time,
+            update_time=user.update_time
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"认证失败: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )

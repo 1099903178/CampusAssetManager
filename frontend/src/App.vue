@@ -40,12 +40,13 @@ onMounted(() => {
 
 <style>
 /**
- * 全局样式重置
+ * 全局样式重置与优化
  */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  outline: none;
 }
 
 html,
@@ -53,13 +54,11 @@ body,
 #app {
   width: 100%;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 /**
- * 滚动条样式
+ * 现代化的滚动条样式
+ * 更加纤细，颜色更淡，减少视觉干扰
  */
 ::-webkit-scrollbar {
   width: 6px;
@@ -67,15 +66,32 @@ body,
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(144, 147, 153, 0.3);
+  background-color: rgba(0, 0, 0, 0.15);
   border-radius: 3px;
+  transition: background-color 0.3s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(144, 147, 153, 0.5);
+  background-color: rgba(0, 0, 0, 0.3);
 }
 
 ::-webkit-scrollbar-track {
   background-color: transparent;
+}
+
+/* 页面切换动画 - 轻柔的淡入淡出 */
+.fade-transform-enter-active,
+.fade-transform-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.fade-transform-enter-from {
+  opacity: 0;
+  transform: translateX(-10px);
+}
+
+.fade-transform-leave-to {
+  opacity: 0;
+  transform: translateX(10px);
 }
 </style>

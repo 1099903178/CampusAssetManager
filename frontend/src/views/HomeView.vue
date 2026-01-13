@@ -14,384 +14,389 @@
  */
 
 <template>
-  <div class="home-container">
-      <!-- 统计卡片区域 -->
-      <el-card class="statistics-card">
-        <template #header>
-          <div class="card-header">
-            <span>数据概览</span>
-            <el-button
-              type="primary"
-              :icon="RefreshRight"
-              @click="refreshData"
-              :loading="loading"
-              size="small"
-              circle
-            />
-          </div>
-        </template>
-        
-        <el-row :gutter="20" class="stat-row">
-          <!-- 统计卡片 -->
-          <el-col :xs="24" :sm="12" :md="12" :lg="6" :xl="6" v-for="stat in statistics" :key="stat.title">
-            <el-card class="stat-card">
-              <div class="stat-content">
-                <div class="stat-icon" :style="{ background: stat.color }">
-                  <el-icon :size="32">
-                    <component :is="stat.icon" />
-                  </el-icon>
-                </div>
-                <div class="stat-info">
-                  <div class="stat-value">{{ stat.value }}</div>
-                  <div class="stat-label">{{ stat.title }}</div>
-                </div>
-              </div>
-            </el-card>
-          </el-col>
-        </el-row>
-        
-        <!-- 数据更新时间 -->
-        <div v-if="updateTime" class="update-time">
-          数据更新时间：{{ updateTime }}
-        </div>
-      </el-card>
-      
-      <!-- 快捷操作 -->
-      <el-card class="quick-actions" style="margin-top: 20px;">
-        <template #header>
-          <div class="card-header">
-            <span>快捷操作</span>
-          </div>
-        </template>
-        <div class="action-buttons">
-          <el-button
-            v-for="action in actions"
-            :key="action.name"
-            :type="action.type"
-            @click="handleAction(action.path)"
-            class="action-button"
-          >
-            <el-icon class="action-icon">
-              <component :is="action.icon" />
-            </el-icon>
-            {{ action.name }}
-          </el-button>
-        </div>
-      </el-card>
-      
-      <!-- 系统公告 -->
-      <el-card class="system-notice" style="margin-top: 20px;">
-        <template #header>
-          <div class="card-header">
-            <span>系统公告</span>
-          </div>
-        </template>
-        <el-timeline>
-          <el-timeline-item
-            v-for="(notice, index) in notices"
-            :key="index"
-            :timestamp="notice.date"
-            placement="top"
-          >
-            <el-card>
-              <h4>{{ notice.title }}</h4>
-              <p>{{ notice.content }}</p>
-            </el-card>
-          </el-timeline-item>
-        </el-timeline>
-      </el-card>
+  <div class="dashboard-container">
+    <div class="welcome-banner">
+      <div class="welcome-text">
+        <h2>{{ timeGreeting }}，管理员</h2>
+        <p>今天是 {{ currentDate }}，准备好处理今天的校园资产事务了吗？</p>
+      </div>
+      <div class="welcome-decoration">
+        <el-icon :size="120" color="rgba(255,255,255,0.15)"><Odometer /></el-icon>
+      </div>
     </div>
+
+    <div class="section-container">
+      <div class="section-header">
+        <h3>核心指标</h3>
+        <el-button 
+          :icon="RefreshRight" 
+          circle 
+          size="small"
+          @click="refreshData" 
+          :loading="loading" 
+        />
+      </div>
+
+      <el-row :gutter="20" class="stat-row">
+        <el-col :xs="24" :sm="12" :md="6" v-for="stat in statistics" :key="stat.title">
+          <div class="stat-card">
+            <div class="stat-icon-box" :style="{ background: `linear-gradient(135deg, ${stat.color} 0%, ${adjustColor(stat.color, -20)} 100%)` }">
+              <el-icon><component :is="stat.icon" /></el-icon>
+            </div>
+            <div class="stat-info">
+              <div class="stat-label">{{ stat.title }}</div>
+              <div class="stat-num">{{ stat.value }}</div>
+            </div>
+          </div>
+        </el-col>
+      </el-row>
+    </div>
+      
+    <el-row :gutter="20" style="margin-top: 10px;">
+      <el-col :lg="16" :md="24">
+        <div class="content-panel">
+          <div class="panel-header">
+            <h4>快捷导航</h4>
+          </div>
+          <div class="quick-actions-grid">
+            <div 
+              class="action-item" 
+              v-for="action in actions"
+              :key="action.name"
+              @click="handleAction(action.path)"
+            >
+              <div class="action-icon" :class="action.type">
+                <el-icon><component :is="action.icon" /></el-icon>
+              </div>
+              <span class="action-name">{{ action.name }}</span>
+            </div>
+          </div>
+        </div>
+      </el-col>
+      
+      <el-col :lg="8" :md="24">
+        <div class="content-panel">
+          <div class="panel-header">
+            <h4>最新公告</h4>
+            <el-link type="primary" :underline="false" style="font-size: 12px;">查看全部</el-link>
+          </div>
+          <div class="notice-list">
+            <div class="notice-item" v-for="(notice, index) in notices" :key="index">
+              <div class="notice-date-badge">
+                <span class="day">{{ getDay(notice.date) }}</span>
+                <span class="month">{{ getMonth(notice.date) }}月</span>
+              </div>
+              <div class="notice-content">
+                <div class="notice-title">{{ notice.title }}</div>
+                <div class="notice-desc">{{ notice.content }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, markRaw } from 'vue'
+import { ref, onMounted, markRaw, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Box, ShoppingCart, DocumentChecked, WarningFilled, RefreshRight } from '@element-plus/icons-vue'
+import { Box, ShoppingCart, DocumentChecked, WarningFilled, RefreshRight, DataLine, Odometer } from '@element-plus/icons-vue'
 import { getDataOverview } from '@/api/statistics'
 
-/**
- * 路由实例
- */
 const router = useRouter()
-
-/**
- * 统计数据
- */
-const statistics = ref([
-  {
-    title: '物品总数',
-    value: '0',
-    icon: markRaw(Box),
-    color: '#409eff'
-  },
-  {
-    title: '库存总数',
-    value: '0',
-    icon: markRaw(ShoppingCart),
-    color: '#67c23a'
-  },
-  {
-    title: '今日入库',
-    value: '0',
-    icon: markRaw(DocumentChecked),
-    color: '#e6a23c'
-  },
-  {
-    title: '今日出库',
-    value: '0',
-    icon: markRaw(DocumentChecked),
-    color: '#909399'
-  },
-  {
-    title: '预警数量',
-    value: '0',
-    icon: markRaw(WarningFilled),
-    color: '#f56c6c'
-  }
-])
-
-/**
- * 数据更新时间
- */
-const updateTime = ref('')
-
-/**
- * 加载状态
- */
 const loading = ref(false)
 
-/**
- * 快捷操作
- */
+// 动态问候语
+const timeGreeting = computed(() => {
+  const hour = new Date().getHours()
+  if (hour < 9) return '早上好'
+  if (hour < 12) return '上午好'
+  if (hour < 14) return '中午好'
+  if (hour < 18) return '下午好'
+  return '晚上好'
+})
+
+const currentDate = computed(() => {
+  const date = new Date()
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`
+})
+
+const statistics = ref([
+  { title: '物品总数', value: '0', icon: markRaw(Box), color: '#1677ff' },
+  { title: '当前库存', value: '0', icon: markRaw(ShoppingCart), color: '#52c41a' },
+  { title: '今日入库', value: '0', icon: markRaw(DocumentChecked), color: '#faad14' },
+  { title: '库存预警', value: '0', icon: markRaw(WarningFilled), color: '#ff4d4f' }
+])
+
 const actions = [
-  {
-    name: '物品管理',
-    path: '/goods',
-    icon: Box,
-    type: 'primary'
-  },
-  {
-    name: '库存管理',
-    path: '/stock',
-    icon: ShoppingCart,
-    type: 'success'
-  },
-  {
-    name: '盘点管理',
-    path: '/check',
-    icon: DocumentChecked,
-    type: 'warning'
-  },
-  {
-    name: '统计报表',
-    path: '/statistics',
-    icon: ShoppingCart,
-    type: 'danger'
-  }
+  { name: '物品管理', path: '/goods', icon: Box, type: 'primary' },
+  { name: '库存管理', path: '/stock', icon: ShoppingCart, type: 'success' },
+  { name: '库存盘点', path: '/check', icon: DocumentChecked, type: 'warning' },
+  { name: '数据报表', path: '/statistics', icon: DataLine, type: 'danger' }
 ]
 
-/**
- * 系统公告
- */
 const notices = [
-  {
-    title: '系统升级通知',
-    content: '系统将于本周六凌晨2:00进行升级维护，预计持续2小时，请提前做好数据备份。',
-    date: '2026-01-05'
-  },
-  {
-    title: '新功能发布',
-    content: '系统新增了数据概览功能，支持实时统计物品总数、库存总数、今日入库出库量和预警数量。',
-    date: '2026-01-09'
-  },
-  {
-    title: '数据安全提醒',
-    content: '请定期修改密码，确保账户安全。建议使用包含字母、数字和特殊字符的复杂密码。',
-    date: '2026-01-03'
-  }
+  { title: '系统升级维护通知', content: '系统将于本周六凌晨2:00进行维护，预计2小时。', date: '2026-01-05' },
+  { title: '新功能发布', content: '新增数据驾驶舱，支持多维度分析库存数据。', date: '2026-01-09' },
+  { title: '安全提醒', content: '请定期修改密码，确保账户安全。', date: '2026-01-03' }
 ]
 
-/**
- * 获取统计数据
- */
 const loadStatistics = async () => {
   try {
     loading.value = true
-    const response = await getDataOverview()
-    
-    // request.js的响应拦截器已经提取了data字段，所以response就是数据对象本身
-    if (response && response.total_goods !== undefined) {
-      // 更新统计数据
-      statistics.value[0].value = response.total_goods?.toLocaleString() || '0'
-      statistics.value[1].value = response.total_stock?.toLocaleString() || '0'
-      statistics.value[2].value = response.today_stock_in?.toLocaleString() || '0'
-      statistics.value[3].value = response.today_stock_out?.toLocaleString() || '0'
-      statistics.value[4].value = response.warning_count?.toLocaleString() || '0'
-      
-      // 更新时间
-      updateTime.value = response.update_time || ''
-      
-      ElMessage.success('数据加载成功')
-    } else {
-      ElMessage.error('获取统计数据失败')
+    const res = await getDataOverview()
+    if (res) {
+      statistics.value[0].value = res.total_goods || '0'
+      statistics.value[1].value = res.total_stock || '0'
+      statistics.value[2].value = res.today_stock_in || '0'
+      statistics.value[3].value = res.warning_count || '0'
     }
-  } catch (error) {
-    console.error('获取统计数据失败:', error)
-    ElMessage.error('获取统计数据失败，请稍后重试')
+  } catch (e) {
+    // 失败静默处理或轻提示
   } finally {
     loading.value = false
   }
 }
 
-/**
- * 刷新数据
- */
-const refreshData = () => {
-  loadStatistics()
-}
+const refreshData = () => loadStatistics()
+const handleAction = (path) => router.push(path)
 
-/**
- * 处理快捷操作
- * 
- * @param {string} path - 跳转路径
- */
-const handleAction = (path) => {
-  router.push(path)
-}
+// 日期解析辅助
+const getDay = (dateStr) => dateStr.split('-')[2]
+const getMonth = (dateStr) => dateStr.split('-')[1]
 
-/**
- * 组件挂载时加载统计数据
- */
-onMounted(() => {
-  loadStatistics()
-})
+// 颜色变暗辅助函数 (简易版)
+const adjustColor = (color, amount) => color // 实际可用 tinycolor 库，这里暂不做处理
+
+onMounted(() => loadStatistics())
 </script>
 
 <style scoped>
-.home-container {
-  width: 100%;
-  /* 设置最大宽度限制，使内容居中且不过于分散 */
+.dashboard-container {
   max-width: 1600px;
   margin: 0 auto;
-  padding: 20px;
-  box-sizing: border-box;
 }
 
-.stat-row {
-  margin-bottom: 20px;
-}
-
-/**
- * 统计卡片
- */
-.statistics-card {
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  width: 100%;
-  margin-bottom: 20px;
-  cursor: pointer;
-  transition: all 0.3s;
-  box-sizing: border-box;
-}
-
-.stat-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-}
-
-.stat-content {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+/* 欢迎 Banner */
+.welcome-banner {
+  background: linear-gradient(135deg, #1677ff 0%, #3594ff 100%);
+  border-radius: 12px;
+  padding: 32px 40px;
   color: #fff;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 20px -5px rgba(22, 119, 255, 0.3);
 }
 
-.stat-info {
-  flex: 1;
-}
-
-.stat-value {
+.welcome-text h2 {
   font-size: 24px;
-  font-weight: 600;
-  color: #303133;
   margin-bottom: 8px;
+  font-weight: 600;
 }
 
-.stat-label {
+.welcome-text p {
+  opacity: 0.9;
   font-size: 14px;
-  color: #909399;
 }
 
-/**
- * 数据更新时间
- */
-.update-time {
-  text-align: right;
-  font-size: 12px;
-  color: #909399;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #ebeef5;
+.welcome-decoration {
+  position: absolute;
+  right: -20px;
+  top: -20px;
+  transform: rotate(15deg);
 }
 
-/**
- * 卡片头部
- */
-.card-header {
+/* 章节标题 */
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
+}
+.section-header h3 {
   font-size: 16px;
+  color: #1f1f1f;
   font-weight: 600;
 }
 
-/**
- * 快捷操作按钮
- */
-.action-buttons {
+/* 统计卡片 */
+.stat-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 20px;
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 16px;
+  transition: all 0.3s ease;
+  border: 1px solid #f0f0f0;
+  margin-bottom: 20px;
 }
 
-.action-button {
-  min-width: 140px;
-  height: 80px;
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  border-color: transparent;
+}
+
+.stat-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 22px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.stat-info {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  padding: 0 20px;
 }
 
-.action-button .action-icon {
-  font-size: 28px;
+.stat-label {
+  font-size: 13px;
+  color: #8c8c8c;
   margin-bottom: 4px;
 }
 
-/**
- * 系统公告
- */
-.system-notice h4 {
-  margin-bottom: 8px;
-  color: #303133;
+.stat-num {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1f1f1f;
+  line-height: 1;
 }
 
-.system-notice p {
-  color: #606266;
-  line-height: 1.6;
+/* 面板通用 */
+.content-panel {
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px;
+  height: 100%;
+  border: 1px solid #f0f0f0;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.panel-header h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+/* 快捷操作 */
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 16px;
+}
+
+.action-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: #f9fafb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.action-item:hover {
+  background: #fff;
+  border-color: #1677ff;
+  box-shadow: 0 4px 12px rgba(22, 119, 255, 0.1);
+}
+
+.action-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+.action-icon.primary { background: linear-gradient(135deg, #4096ff, #1677ff); }
+.action-icon.success { background: linear-gradient(135deg, #95de64, #52c41a); }
+.action-icon.warning { background: linear-gradient(135deg, #ffd666, #faad14); }
+.action-icon.danger { background: linear-gradient(135deg, #ff7875, #ff4d4f); }
+
+.action-name {
+  font-size: 13px;
+  color: #595959;
+}
+
+/* 公告列表 */
+.notice-item {
+  display: flex;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px dashed #f0f0f0;
+}
+
+.notice-item:last-child {
+  border-bottom: none;
+}
+
+.notice-date-badge {
+  background: #f0f7ff;
+  color: #1677ff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 50px;
+  height: 50px;
+}
+
+.notice-date-badge .day {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.notice-date-badge .month {
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.notice-content {
+  flex: 1;
+}
+
+.notice-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f1f1f;
+  margin-bottom: 4px;
+}
+
+.notice-desc {
+  font-size: 12px;
+  color: #8c8c8c;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>
