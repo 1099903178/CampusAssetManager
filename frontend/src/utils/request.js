@@ -221,13 +221,14 @@ export const http = {
     // 确保params是一个对象，避免undefined
     const requestParams = params || {}
     
-    // 创建完整配置对象
+    // 创建完整配置对象，确保url和params正确传递
     const fullConfig = {
       ...config,
+      method: 'get',
       params: requestParams
     }
     
-    return service(url, fullConfig)
+    return service.get(url, fullConfig)
   },
   
   /**

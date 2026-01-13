@@ -5,27 +5,77 @@
  * 功能说明：
  * - 定义全局CSS变量
  * - 设置基础样式
- * 
+ *
+ * 设计语言：Modern Enterprise (极简、高效、微阴影)
+ *
  * 作者：CampusAssetManager开发团队
  * 日期：2026-01-05
  */
 
 :root {
-  --primary-color: #409eff;
-  --success-color: #67c23a;
-  --warning-color: #e6a23c;
-  --danger-color: #f56c6c;
+  /* 品牌色 - 更加稳重的科技蓝 (Interstellar Blue) */
+  --primary-color: #1677ff;
+  --primary-hover: #4096ff;
+  --primary-active: #0958d9;
+  
+  /* 功能色 */
+  --success-color: #52c41a;
+  --warning-color: #faad14;
+  --danger-color: #ff4d4f;
   --info-color: #909399;
-  --text-color: #303133;
-  --text-color-secondary: #606266;
-  --border-color: #dcdfe6;
-  --bg-color: #ffffff;
-  --bg-color-secondary: #f5f7fa;
+  
+  /* 中性色系统 - 建立清晰的文字层级 */
+  --text-primary: #1f1f1f;    /* 标题 */
+  --text-regular: #434343;    /* 正文 */
+  --text-secondary: #8c8c8c;  /* 次要信息 */
+  --text-placeholder: #bfbfbf; /* 占位符 */
+  
+  /* 背景色体系 */
+  --bg-body: #f5f7fa;         /* 页面底色 */
+  --bg-container: #ffffff;    /* 容器背景 */
+  --bg-hover: #f5f5f5;        /* 悬停背景 */
+  
+  /* 边框与分割线 */
+  --border-color-base: #d9d9d9;
+  --border-color-light: #f0f0f0;
+  --border-color-lighter: #ebeef5;
+
+  /* 阴影体系 - 更加细腻的层级感 */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  /* 优先使用系统原生字体栈，保证在 Windows/Mac 上都有最佳渲染效果 */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-body);
+  color: var(--text-regular);
+  font-size: 14px;
+  line-height: 1.5715;
+}
+
+/* 优化 Element Plus 的默认样式，使其更扁平化 */
+.el-card {
+  border: none !important;
+  border-radius: 8px !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: all 0.3s ease-in-out;
+}
+
+.el-button {
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--primary-color);
+  --el-button-border-color: var(--primary-color);
+  --el-button-hover-bg-color: var(--primary-hover);
+  --el-button-hover-border-color: var(--primary-hover);
+  --el-button-active-bg-color: var(--primary-active);
+  --el-button-active-border-color: var(--primary-active);
 }
