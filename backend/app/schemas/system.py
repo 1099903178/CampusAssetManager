@@ -230,24 +230,6 @@ PREDEFINED_CONFIGS = [
         "is_public": 1
     },
     {
-        "config_key": "min_stock_alert",
-        "config_name": "最小库存预警值",
-        "config_value": "10",
-        "config_type": "number",
-        "category": "stock",
-        "description": "库存低于此值时触发预警",
-        "is_public": 1
-    },
-    {
-        "config_key": "max_stock_alert",
-        "config_name": "最大库存预警值",
-        "config_value": "1000",
-        "config_type": "number",
-        "category": "stock",
-        "description": "库存高于此值时触发预警",
-        "is_public": 1
-    },
-    {
         "config_key": "check_period",
         "config_name": "盘点周期",
         "config_value": "monthly",

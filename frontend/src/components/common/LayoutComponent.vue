@@ -48,6 +48,11 @@
             <template #title>库存管理</template>
           </el-menu-item>
           
+          <el-menu-item index="/ledger">
+            <el-icon><Document /></el-icon>
+            <template #title>库存台账</template>
+          </el-menu-item>
+          
           <el-menu-item index="/check">
             <el-icon><DocumentChecked /></el-icon>
             <template #title>盘点管理</template>
@@ -121,7 +126,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores'
 import {
   Fold, Expand, UserFilled, User, Setting, SwitchButton,
-  Odometer, Goods, Box, DocumentChecked, DataLine, CaretBottom
+  Odometer, Goods, Box, DocumentChecked, DataLine, CaretBottom,
+  Document
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

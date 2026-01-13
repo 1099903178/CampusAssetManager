@@ -61,6 +61,12 @@ const routes = [
         meta: { title: '盘点管理', requiresAuth: true }
       },
       {
+        path: 'ledger',
+        name: 'Ledger',
+        component: () => import('@/views/LedgerView.vue'),
+        meta: { title: '库存台账', requiresAuth: true }
+      },
+      {
         path: 'statistics',
         name: 'Statistics',
         component: () => import('@/views/StatisticsView.vue'),
