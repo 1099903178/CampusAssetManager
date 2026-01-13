@@ -22,23 +22,49 @@
   <div class="stock-container">
     <!-- 工具栏 -->
       <el-card class="toolbar-card">
-        <el-form :inline="true" :model="searchForm">
-          <el-form-item label="物品名称">
+        <el-row :gutter="20">
+          <el-col :span="6">
             <el-input
               v-model="searchForm.goods_name"
-              placeholder="请输入物品名称"
+              placeholder="搜索物品名称、编码"
               clearable
-            />
-          </el-form-item>
-          
-          <el-form-item>
-            <el-button type="primary" @click="loadStockList">搜索</el-button>
+              @clear="handleSearch"
+              @keyup.enter="handleSearch"
+            >
+              <template #append>
+                <el-button @click="handleSearch">搜索</el-button>
+              </template>
+            </el-input>
+          </el-col>
+          <el-col :span="4">
+            <el-select
+              v-model="searchForm.stock_status"
+              placeholder="库存状态"
+              clearable
+              @change="handleSearch"
+            >
+              <el-option label="低库存" value="low" />
+              <el-option label="库存过高" value="over" />
+              <el-option label="正常" value="normal" />
+            </el-select>
+          </el-col>
+          <el-col :span="6">
+            <el-button type="danger" @click="handleShowLowStock">
+              <el-icon><Warning /></el-icon>
+              只显示低库存
+            </el-button>
             <el-button @click="handleReset">重置</el-button>
-          </el-form-item>
-        </el-form>
-        
-        <el-button type="success" @click="handleStockIn">入库</el-button>
-        <el-button type="warning" @click="handleStockOut">出库</el-button>
+            <el-button type="primary" @click="handleBatchThreshold" v-if="canAdjustStock">
+              <el-icon><Setting /></el-icon>
+              批量设置阈值
+            </el-button>
+          </el-col>
+          <el-col :span="8" style="text-align: right;">
+            <el-button type="success" @click="handleStockIn" v-if="canCreate">入库</el-button>
+            <el-button type="warning" @click="handleStockOut">出库</el-button>
+            <el-button type="danger" @click="handleStockAdjust" v-if="canAdjustStock">调整</el-button>
+          </el-col>
+        </el-row>
       </el-card>
       
       <!-- 库存列表 -->
@@ -59,12 +85,21 @@
             <el-table-column prop="category_name" label="分类名称" width="120" />
             <el-table-column prop="current_stock" label="当前库存" width="100" align="right">
               <template #default="{ row }">
-                <span :class="{ 'low-stock-warning': row.current_stock <= 0 }">
+                <span :class="getStockClass(row)">
                   {{ row.current_stock || 0 }}
                 </span>
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" width="80" align="center">
+            <el-table-column prop="min_stock" label="最小库存" width="90" align="center" />
+            <el-table-column prop="max_stock" label="最大库存" width="90" align="center" />
+            <el-table-column prop="stock_status" label="库存状态" width="100" align="center">
+              <template #default="{ row }">
+                <el-tag :type="getStockStatusType(row)" size="small">
+                  {{ row.status_text || '未知' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="status" label="物品状态" width="90" align="center">
               <template #default="{ row }">
                 <el-tag :type="getStatusType(row.status)" size="small">
                   {{ getStatusText(row.status) }}
@@ -76,9 +111,10 @@
                 {{ formatDate(row.update_time) }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="100" align="center" fixed="right">
+            <el-table-column label="操作" width="150" align="center" fixed="right">
               <template #default="{ row }">
                 <el-button type="primary" link @click="handleDetail(row)">详情</el-button>
+                <el-button type="warning" link @click="handleThreshold(row)" v-if="canAdjustStock">设置阈值</el-button>
               </template>
             </el-table-column>
           </template>
@@ -272,25 +308,225 @@
         v-model="detailVisible"
         :goods="selectedGoods"
       />
-    </div>
+      
+      <!-- 库存调整对话框 -->
+      <el-dialog
+        v-model="adjustDialogVisible"
+        title="库存调整"
+        width="600px"
+        @close="handleAdjustDialogClose"
+      >
+        <el-alert
+          title="警告"
+          type="warning"
+          :closable="false"
+          style="margin-bottom: 20px;"
+        >
+          此操作将直接修改库存数量，请谨慎操作！此功能仅限超级管理员使用。
+        </el-alert>
+        <el-form
+          ref="adjustFormRef"
+          :model="adjustFormData"
+          :rules="adjustFormRules"
+          label-width="100px"
+        >
+          <el-form-item label="物品" prop="goods_id">
+            <el-select
+              v-model="adjustFormData.goods_id"
+              placeholder="请选择物品"
+              style="width: 100%"
+              @change="handleAdjustGoodsChange"
+            >
+              <el-option
+                v-for="item in stockList"
+                :key="item.goods_id"
+                :label="`${item.goods_name} - 当前库存: ${item.current_stock || 0}`"
+                :value="item.goods_id"
+              />
+            </el-select>
+          </el-form-item>
+          
+          <el-form-item label="当前库存">
+            <el-input v-model="adjustCurrentStock" disabled />
+          </el-form-item>
+          
+          <el-form-item label="调整数量" prop="adjust_quantity">
+            <el-input-number
+              v-model="adjustFormData.adjust_quantity"
+              :step="1"
+              placeholder="正数为增加，负数为减少"
+              style="width: 100%"
+            />
+            <div style="font-size: 12px; color: #909399; margin-top: 5px;">
+              正数为增加库存，负数为减少库存
+            </div>
+          </el-form-item>
+          
+          <el-form-item label="调整后库存">
+            <el-input v-model="adjustAfterStock" disabled>
+              <template #append>自动计算</template>
+            </el-input>
+          </el-form-item>
+          
+          <el-form-item label="调整原因" prop="adjust_reason">
+            <el-input
+              v-model="adjustFormData.adjust_reason"
+              type="textarea"
+              :rows="3"
+              placeholder="请详细说明调整原因，此项为必填项"
+            />
+          </el-form-item>
+        </el-form>
+        
+        <template #footer>
+          <el-button @click="adjustDialogVisible = false">取消</el-button>
+          <el-button type="danger" @click="handleAdjustSubmit" :loading="adjustSubmitting">确定调整</el-button>
+        </template>
+      </el-dialog>
+    
+    <!-- 单个物品阈值设置对话框 -->
+    <el-dialog
+      v-model="thresholdDialogVisible"
+      title="设置库存阈值"
+      width="500px"
+      @close="handleThresholdDialogClose"
+    >
+      <el-form
+        ref="thresholdFormRef"
+        :model="thresholdFormData"
+        :rules="thresholdFormRules"
+        label-width="100px"
+      >
+        <el-form-item label="物品名称">
+          <el-input v-model="thresholdFormData.goods_name" disabled />
+        </el-form-item>
+        
+        <el-form-item label="当前库存">
+          <el-input v-model="thresholdFormData.current_stock" disabled />
+        </el-form-item>
+        
+        <el-form-item label="最小库存" prop="min_stock">
+          <el-input-number
+            v-model="thresholdFormData.min_stock"
+            :min="0"
+            :step="1"
+            style="width: 100%"
+          />
+          <div style="font-size: 12px; color: #909399; margin-top: 5px;">
+            低于此值时显示低库存预警
+          </div>
+        </el-form-item>
+        
+        <el-form-item label="最大库存" prop="max_stock">
+          <el-input-number
+            v-model="thresholdFormData.max_stock"
+            :min="0"
+            :step="1"
+            placeholder="可选，不设置则不预警"
+            style="width: 100%"
+          />
+          <div style="font-size: 12px; color: #909399; margin-top: 5px;">
+            高于此值时显示库存过高预警
+          </div>
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <el-button @click="thresholdDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleThresholdSubmit" :loading="thresholdSubmitting">确定</el-button>
+      </template>
+    </el-dialog>
+    
+    <!-- 批量阈值设置对话框 -->
+    <el-dialog
+      v-model="batchThresholdDialogVisible"
+      title="批量设置库存阈值"
+      width="500px"
+      @close="handleBatchThresholdDialogClose"
+    >
+      <el-alert
+        title="提示"
+        type="info"
+        :closable="false"
+        style="margin-bottom: 20px;"
+      >
+        将为所有物品设置统一的库存阈值。如需为特定物品设置不同阈值，请在列表中单独设置。
+      </el-alert>
+      <el-form
+        ref="batchThresholdFormRef"
+        :model="batchThresholdFormData"
+        :rules="batchThresholdFormRules"
+        label-width="120px"
+      >
+        <el-form-item label="最小库存" prop="min_stock">
+          <el-input-number
+            v-model="batchThresholdFormData.min_stock"
+            :min="0"
+            :step="1"
+            style="width: 100%"
+          />
+          <div style="font-size: 12px; color: #909399; margin-top: 5px;">
+            低于此值时显示低库存预警
+          </div>
+        </el-form-item>
+        
+        <el-form-item label="最大库存" prop="max_stock">
+          <el-input-number
+            v-model="batchThresholdFormData.max_stock"
+            :min="0"
+            :step="1"
+            placeholder="可选，如留空则不设置最大库存"
+            style="width: 100%"
+          />
+          <div style="font-size: 12px; color: #909399; margin-top: 5px;">
+            高于此值时显示库存过高预警
+          </div>
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <el-button @click="batchThresholdDialogVisible = false">取消</el-button>
+        <el-button type="danger" @click="handleBatchThresholdSubmit" :loading="batchThresholdSubmitting">
+          批量应用
+        </el-button>
+      </template>
+    </el-dialog>
+  </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, nextTick } from 'vue'
+/**
+ * 导入依赖
+ */
+import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import TableComponent from '@/components/common/TableComponent.vue'
 import StockDetailDialog from '@/components/common/StockDetailDialog.vue'
 import { getStockList, getGoodsList } from '@/api/goods'
-import { createStockIn, createStockOut } from '@/api/stock'
+import { createStockIn, createStockOut, adjustStock, getStockListEnhanced, updateStockThreshold, batchUpdateStockThresholds } from '@/api/stock'
+import { getConfigs } from '@/api'
+import { Warning, Setting } from '@element-plus/icons-vue'
 
 // 用户存储
 const userStore = useUserStore()
+
+/**
+ * 系统配置
+ */
+const defaultMinStock = ref(10)      // 默认最小库存
+const defaultMaxStock = ref(1000)    // 默认最大库存
 
 // 是否可以创建入库（仅管理员）
 const canCreate = computed(() => {
   const userRole = userStore.user?.role
   return userRole === 'admin' || userRole === 'super_admin'
+})
+
+// 是否可以调整库存（仅超级管理员）
+const canAdjustStock = computed(() => {
+  const userRole = userStore.user?.role
+  return userRole === 'super_admin'
 })
 
 /**
@@ -312,7 +548,8 @@ const allGoodsList = ref([])
  * 搜索表单
  */
 const searchForm = reactive({
-  goods_name: ''
+  goods_name: '',
+  stock_status: ''
 })
 
 /**
@@ -380,20 +617,84 @@ const detailVisible = ref(false)
 const selectedGoods = ref({})
 
 /**
+ * 库存调整对话框
+ */
+const adjustDialogVisible = ref(false)
+const adjustSubmitting = ref(false)
+
+/**
+ * 阈值配置对话框
+ */
+const thresholdDialogVisible = ref(false)
+const thresholdSubmitting = ref(false)
+const thresholdFormRef = ref(null)
+const thresholdFormData = reactive({
+  goods_id: null,
+  goods_name: '',
+  current_stock: 0,
+  min_stock: 10,
+  max_stock: null
+})
+
+const thresholdFormRules = {
+  min_stock: [{ required: true, message: '请输入最小库存', trigger: 'blur' }]
+}
+
+/**
+ * 批量阈值配置对话框
+ */
+const batchThresholdDialogVisible = ref(false)
+const batchThresholdSubmitting = ref(false)
+const batchThresholdFormRef = ref(null)
+const batchThresholdFormData = reactive({
+  min_stock: 10,
+  max_stock: null
+})
+
+const batchThresholdFormRules = {
+  min_stock: [{ required: true, message: '请输入最小库存', trigger: 'blur' }]
+}
+const adjustFormRef = ref(null)
+const adjustFormData = reactive({
+  goods_id: null,
+  adjust_quantity: 0,
+  adjust_reason: ''
+})
+
+const adjustFormRules = {
+  goods_id: [{ required: true, message: '请选择物品', trigger: 'change' }],
+  adjust_quantity: [
+    { required: true, message: '请输入调整数量', trigger: 'blur' },
+    { type: 'number', message: '请输入有效的数字', trigger: 'blur' }
+  ],
+  adjust_reason: [
+    { required: true, message: '请输入调整原因', trigger: 'blur' },
+    { min: 5, message: '调整原因至少5个字符', trigger: 'blur' }
+  ]
+}
+
+const adjustCurrentStock = ref(0)
+const adjustAfterStock = ref(0)
+
+/**
  * 加载库存列表
  */
 const loadStockList = async () => {
   try {
     loading.value = true
-    const response = await getStockList({
+    const params = {
       page: pagination.page,
       page_size: pagination.limit,
-      goods_name: searchForm.goods_name || undefined
-    })
+      search: searchForm.goods_name || undefined,
+      stock_status: searchForm.stock_status || undefined
+    }
+    
+    // 响应拦截器已自动处理，直接返回 data
+    const response = await getStockListEnhanced(params)
     stockList.value = response.items
     pagination.total = response.total
   } catch (error) {
-    ElMessage.error('加载库存列表失败')
+    ElMessage.error('加载库存列表失败：' + (error.message || '未知错误'))
   } finally {
     loading.value = false
   }
@@ -404,6 +705,7 @@ const loadStockList = async () => {
  */
 const loadAllGoodsList = async () => {
   try {
+    // 响应拦截器已自动处理，直接返回 data
     const response = await getGoodsList({
       page: 1,
       page_size: 1000,
@@ -411,7 +713,7 @@ const loadAllGoodsList = async () => {
     })
     allGoodsList.value = response.items
   } catch (error) {
-    ElMessage.error('加载物品列表失败')
+    ElMessage.error('加载物品列表失败：' + error.message)
   }
 }
 
@@ -437,12 +739,61 @@ const handleSizeChange = (limit) => {
 }
 
 /**
+ * 处理搜索
+ */
+const handleSearch = () => {
+  pagination.page = 1
+  loadStockList()
+}
+
+/**
+ * 处理显示低库存
+ */
+const handleShowLowStock = () => {
+  searchForm.goods_name = ''
+  searchForm.stock_status = 'low'
+  pagination.page = 1
+  loadStockList()
+}
+
+/**
  * 处理重置
  */
 const handleReset = () => {
   searchForm.goods_name = ''
+  searchForm.stock_status = ''
   pagination.page = 1
   loadStockList()
+}
+
+/**
+ * 获取库存样式类
+ *
+ * @param {Object} row - 行数据
+ * @returns {string} 样式类名
+ */
+const getStockClass = (row) => {
+  if (!row.stock_status) return ''
+  return {
+    'low-stock': row.stock_status === 'low',
+    'over-stock': row.stock_status === 'over',
+    'normal-stock': row.stock_status === 'normal'
+  }
+}
+
+/**
+ * 获取库存状态类型
+ *
+ * @param {Object} row - 行数据
+ * @returns {string} 标签类型
+ */
+const getStockStatusType = (row) => {
+  const typeMap = {
+    'low': 'danger',
+    'over': 'warning',
+    'normal': 'success'
+  }
+  return typeMap[row.stock_status] || 'info'
 }
 
 /**
@@ -494,16 +845,16 @@ const handleInSubmit = async () => {
     await inFormRef.value.validate()
     inSubmitting.value = true
     
+    // 响应拦截器已自动处理错误提示，这里不需要额外处理
     await createStockIn(inFormData)
     
     ElMessage.success('入库成功')
     inDialogVisible.value = false
     loadStockList()
   } catch (error) {
-    if (error.response?.data?.detail) {
-      ElMessage.error(error.response.data.detail)
-    } else if (error !== false) {
-      ElMessage.error('入库失败')
+    // 错误已被拦截器处理并显示，这里仅记录或做其他处理
+    if (error !== false) {
+      console.error('入库失败：', error)
     }
   } finally {
     inSubmitting.value = false
@@ -571,16 +922,16 @@ const handleOutSubmit = async () => {
     await outFormRef.value.validate()
     outSubmitting.value = true
     
+    // 响应拦截器已自动处理错误提示，这里不需要额外处理
     await createStockOut(outFormData)
     
     ElMessage.success('出库成功')
     outDialogVisible.value = false
     loadStockList()
   } catch (error) {
-    if (error.response?.data?.detail) {
-      ElMessage.error(error.response.data.detail)
-    } else if (error !== false) {
-      ElMessage.error('出库失败')
+    // 错误已被拦截器处理并显示，这里仅记录或做其他处理
+    if (error !== false) {
+      console.error('出库失败：', error)
     }
   } finally {
     outSubmitting.value = false
@@ -657,9 +1008,208 @@ const getStatusText = (status) => {
 }
 
 /**
+ * 处理库存调整
+ */
+const handleStockAdjust = () => {
+  if (stockList.value.length === 0) {
+    ElMessage.warning('暂无可用物品')
+    return
+  }
+  
+  // 重置表单
+  adjustFormData.goods_id = null
+  adjustFormData.adjust_quantity = 0
+  adjustFormData.adjust_reason = ''
+  adjustCurrentStock.value = 0
+  adjustAfterStock.value = 0
+  
+  adjustDialogVisible.value = true
+}
+
+/**
+ * 处理物品变更（库存调整）
+ */
+const handleAdjustGoodsChange = (goodsId) => {
+  const goods = stockList.value.find(item => item.goods_id === goodsId)
+  if (goods) {
+    adjustCurrentStock.value = goods.current_stock || 0
+    calculateAdjustAfterStock()
+  }
+}
+
+/**
+ * 计算调整后库存
+ */
+const calculateAdjustAfterStock = () => {
+  adjustAfterStock.value = adjustCurrentStock.value + adjustFormData.adjust_quantity
+}
+
+/**
+ * 监听调整数量变化
+ */
+watch(() => adjustFormData.adjust_quantity, () => {
+  calculateAdjustAfterStock()
+})
+
+/**
+ * 处理库存调整表单提交
+ */
+const handleAdjustSubmit = async () => {
+  try {
+    await adjustFormRef.value.validate()
+    
+    // 验证调整后库存
+    if (adjustAfterStock.value < 0) {
+      ElMessage.error('调整后库存不能为负数')
+      return
+    }
+    
+    adjustSubmitting.value = true
+    
+    // 响应拦截器已自动处理错误提示，这里不需要额外处理
+    await adjustStock(adjustFormData)
+    
+    ElMessage.success('库存调整成功')
+    adjustDialogVisible.value = false
+    loadStockList()
+  } catch (error) {
+    // 错误已被拦截器处理并显示，这里仅记录或做其他处理
+    if (error !== 'cancel') {
+      console.error('库存调整失败：', error)
+    }
+  } finally {
+    adjustSubmitting.value = false
+  }
+}
+
+/**
+ * 处理库存调整对话框关闭
+ */
+const handleAdjustDialogClose = () => {
+  adjustFormRef.value?.resetFields()
+}
+
+/**
+ * 处理单个物品阈值设置
+ */
+const handleThreshold = (row) => {
+  thresholdFormData.goods_id = row.goods_id
+  thresholdFormData.goods_name = row.goods_name
+  thresholdFormData.current_stock = row.current_stock
+  thresholdFormData.min_stock = row.min_stock
+  thresholdFormData.max_stock = row.max_stock
+  thresholdDialogVisible.value = true
+}
+
+/**
+ * 处理单个物品阈值表单提交
+ */
+const handleThresholdSubmit = async () => {
+  try {
+    await thresholdFormRef.value.validate()
+    
+    thresholdSubmitting.value = true
+    
+    await updateStockThreshold({
+      goods_id: thresholdFormData.goods_id,
+      min_stock: thresholdFormData.min_stock,
+      max_stock: thresholdFormData.max_stock
+    })
+    
+    ElMessage.success('库存阈值设置成功')
+    thresholdDialogVisible.value = false
+    loadStockList()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('设置库存阈值失败：', error)
+    }
+  } finally {
+    thresholdSubmitting.value = false
+  }
+}
+
+/**
+ * 处理单个物品阈值对话框关闭
+ */
+const handleThresholdDialogClose = () => {
+  thresholdFormRef.value?.resetFields()
+}
+
+/**
+ * 加载系统配置
+ */
+const loadSystemConfig = async () => {
+  try {
+    const response = await getConfigs()
+    if (response && response.items) {
+      const configMap = {}
+      response.items.forEach(config => {
+        configMap[config.config_key] = config.config_value
+      })
+      
+      // 读取库存预警阈值配置
+      if (configMap.min_stock_alert) {
+        defaultMinStock.value = parseInt(configMap.min_stock_alert, 10)
+      }
+      if (configMap.max_stock_alert) {
+        defaultMaxStock.value = parseInt(configMap.max_stock_alert, 10)
+      }
+    }
+  } catch (error) {
+    console.error('加载系统配置失败：', error)
+    // 使用默认值
+    defaultMinStock.value = 10
+    defaultMaxStock.value = 1000
+  }
+}
+
+/**
+ * 处理批量阈值设置
+ */
+const handleBatchThreshold = () => {
+  batchThresholdFormData.min_stock = defaultMinStock.value
+  batchThresholdFormData.max_stock = defaultMaxStock.value
+  batchThresholdDialogVisible.value = true
+}
+
+/**
+ * 处理批量阈值表单提交
+ */
+const handleBatchThresholdSubmit = async () => {
+  try {
+    await batchThresholdFormRef.value.validate()
+    
+    batchThresholdSubmitting.value = true
+    
+    const result = await batchUpdateStockThresholds({
+      min_stock: batchThresholdFormData.min_stock,
+      max_stock: batchThresholdFormData.max_stock
+    })
+    
+    ElMessage.success(result.message)
+    batchThresholdDialogVisible.value = false
+    loadStockList()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('批量设置库存阈值失败：', error)
+    }
+  } finally {
+    batchThresholdSubmitting.value = false
+  }
+}
+
+/**
+ * 处理批量阈值对话框关闭
+ */
+const handleBatchThresholdDialogClose = () => {
+  batchThresholdFormRef.value?.resetFields()
+}
+
+/**
  * 组件挂载时加载数据
  */
 onMounted(() => {
+  loadSystemConfig()  // 加载系统配置
   loadStockList()
   loadAllGoodsList()
 })
@@ -677,8 +1227,18 @@ onMounted(() => {
 .table-card {
   height: calc(100vh - 250px);
 }
-.low-stock-warning {
+
+.low-stock {
   color: #f56c6c;
   font-weight: bold;
+}
+
+.over-stock {
+  color: #e6a23c;
+  font-weight: bold;
+}
+
+.normal-stock {
+  color: #67c23a;
 }
 </style>

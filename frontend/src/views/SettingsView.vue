@@ -182,6 +182,8 @@
 import { ref, reactive, onMounted, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getConfigs, updateConfig, getOperationLogs } from '@/api'
+import { syncStockThresholds } from '@/api/stock'
+import { useUserStore } from '@/stores/user'
 
 /**
  * 当前激活的Tab
@@ -277,22 +279,27 @@ const getOperationText = (operation) => {
 }
 
 /**
- * 格式化日期时间
+ * 格式化日期时间（UTC+8时区）
  *
- * @param {string} datetime - 日期时间字符串
- * @returns {string} 格式化后的日期时间
+ * @param {string} datetime - 日期时间字符串（UTC）
+ * @returns {string} 格式化后的日期时间（本地时间 UTC+8）
  */
 const formatDateTime = (datetime) => {
   if (!datetime) return ''
   const date = new Date(datetime)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
+  
+  // 转换为本地时间（UTC+8小时）
+  const localTime = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+  
+  // 手动拼接格式化字符串
+  const year = localTime.getFullYear()
+  const month = String(localTime.getMonth() + 1).padStart(2, '0')
+  const day = String(localTime.getDate()).padStart(2, '0')
+  const hours = String(localTime.getHours()).padStart(2, '0')
+  const minutes = String(localTime.getMinutes()).padStart(2, '0')
+  const seconds = String(localTime.getSeconds()).padStart(2, '0')
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
 /**
@@ -333,11 +340,14 @@ const handleSaveConfig = async () => {
     
     // 构建批量更新请求数据
     const configs = []
+    
     configGroups.value.forEach(group => {
       group.configs.forEach(config => {
+        const newValue = String(configForm[config.config_key])
+        
         configs.push({
           config_key: config.config_key,
-          config_value: String(configForm[config.config_key])
+          config_value: newValue
         })
       })
     })
