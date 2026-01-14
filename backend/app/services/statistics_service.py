@@ -35,7 +35,9 @@ from ..schemas.statistics import (
     GoodsRankingResponse,
     GoodsRankingItem,
     CategoryStatsResponse,
-    CategoryStatsItem
+    CategoryStatsItem,
+    StockAlertResponse,
+    StockAlertItem
 )
 
 
@@ -77,12 +79,15 @@ class StatisticsService:
             today_start = datetime.combine(today_utc, datetime.min.time()).replace(tzinfo=timezone.utc)
             today_end = datetime.combine(today_utc, datetime.max.time()).replace(tzinfo=timezone.utc)
             
-            # 1. 统计物品总数（状态为1表示正常）
-            total_goods = db.query(Goods).filter(
+            # 1. 统计物品总数（所有状态的物品）
+            total_goods_all = db.query(Goods).count()
+            
+            # 2. 统计正常物品总数（状态为1表示正常）
+            total_goods_normal = db.query(Goods).filter(
                 Goods.status == 1
             ).count()
             
-            # 2. 统计库存总数（所有物品的current_stock总和）
+            # 3. 统计库存总数（所有物品的current_stock总和）
             total_stock_result = db.query(
                 func.sum(Stock.current_stock)
             ).scalar()
@@ -111,14 +116,15 @@ class StatisticsService:
                 Stock.current_stock < Stock.min_stock
             ).count()
             
-            # 构建统计数据对象
+            # 构建统计数据对象（使用UTC时间）
             statistics = StatisticsOverview(
-                total_goods=total_goods,
+                total_goods=total_goods_all,
+                total_goods_normal=total_goods_normal,
                 total_stock=total_stock,
                 today_stock_in=today_stock_in,
                 today_stock_out=today_stock_out,
                 warning_count=warning_count,
-                update_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                update_time=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             )
             
             return statistics
@@ -161,11 +167,11 @@ class StatisticsService:
             ... )
         """
         try:
-            # 默认时间范围为最近7天
+            # 默认时间范围为最近7天（使用UTC时间）
             if not start_date:
-                start_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+                start_date = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
             if not end_date:
-                end_date = datetime.now().strftime("%Y-%m-%d")
+                end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             
             # 验证日期格式
             try:
@@ -474,3 +480,57 @@ class StatisticsService:
             raise
         except Exception as e:
             raise RuntimeError(f"获取分类统计失败: {str(e)}")
+    
+    @staticmethod
+    def get_stock_alert(db: Session) -> StockAlertResponse:
+        """
+        获取库存预警列表
+        
+        查询当前库存低于最小阈值的物品列表
+        
+        Args:
+            db (Session): 数据库会话
+        
+        Returns:
+            StockAlertResponse: 库存预警列表响应
+        
+        Raises:
+            RuntimeError: 查询失败
+        
+        Examples:
+            >>> from app.database.config import SessionLocal
+            >>> db = SessionLocal()
+            >>> alert = StatisticsService.get_stock_alert(db)
+            >>> print(f"预警物品数量: {alert.total_count}")
+        """
+        try:
+            # 查询当前库存低于最小阈值的物品
+            # 使用 joinedload 关联查询物品信息
+            alert_stocks = db.query(Stock).options(
+                joinedload(Stock.goods)
+            ).filter(
+                Stock.current_stock < Stock.min_stock
+            ).all()
+            
+            # 构建预警列表
+            alert_list = []
+            for stock in alert_stocks:
+                if stock.goods:
+                    alert_item = StockAlertItem(
+                        goods_id=stock.goods_id,
+                        goods_name=stock.goods.goods_name,
+                        current_stock=stock.current_stock,
+                        min_stock=stock.min_stock
+                    )
+                    alert_list.append(alert_item)
+            
+            # 构建响应
+            response = StockAlertResponse(
+                alert_list=alert_list,
+                total_count=len(alert_list)
+            )
+            
+            return response
+            
+        except Exception as e:
+            raise RuntimeError(f"获取库存预警列表失败: {str(e)}")

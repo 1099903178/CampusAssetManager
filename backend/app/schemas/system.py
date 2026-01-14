@@ -217,6 +217,15 @@ class SystemConfigResponse(BaseModel):
     configs: List[SystemConfigGroup] = Field(..., description="配置分组列表")
 
 
+class SystemResetRequest(BaseModel):
+    """
+    系统重置请求模型
+    
+    用于系统重置时的数据验证
+    """
+    password: str = Field(..., min_length=1, description="管理员密码")
+
+
 # ==================== 预定义系统配置项 ====================
 
 PREDEFINED_CONFIGS = [

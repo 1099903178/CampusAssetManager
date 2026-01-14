@@ -30,7 +30,8 @@ from ...schemas.system import (
     ConfigResponse,
     ConfigUpdate,
     ConfigBatchUpdate,
-    SystemConfigResponse
+    SystemConfigResponse,
+    SystemResetRequest
 )
 from ...services.system_service import (
     operation_log_service,
@@ -41,6 +42,76 @@ from ...schemas.user import UserResponse
 
 # 创建路由器
 router = APIRouter(prefix="/system", tags=["系统管理"])
+
+
+@router.post("/reset", summary="系统重置")
+def reset_system(
+    reset_data: SystemResetRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    系统完全重置接口
+    
+    清空所有业务数据、操作日志和系统配置，并重新初始化默认配置
+    
+    权限要求：
+    - 仅超级管理员可执行
+    
+    重置内容包括：
+    - 物品分类和物品信息
+    - 库存数据
+    - 出入库记录
+    - 盘点记录
+    - 操作日志
+    - 系统配置（恢复默认配置）
+    
+    Args:
+        reset_data (SystemResetRequest): 重置请求数据
+        current_user (UserResponse): 当前登录用户（自动注入）
+        db (Session): 数据库会话（自动注入）
+    
+    Returns:
+        dict: 统一格式的响应 {code, message, data}
+    
+    Raises:
+        HTTPException: 权限不足或重置失败时返回
+    
+    Examples:
+        POST /v1/system/reset
+        {
+            "password": "admin123"
+        }
+    """
+    try:
+        # 权限验证：仅超级管理员可重置系统
+        if current_user.role != "super_admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="权限不足，仅超级管理员可重置系统"
+            )
+        
+        # 调用服务层执行系统重置
+        config_service.reset_system(reset_data, db)
+        
+        # 返回成功响应
+        return {
+            "code": 200,
+            "message": "系统重置成功",
+            "data": {}
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"系统重置失败: {str(e)}"
+        )
+
+
 
 
 # ==================== 操作日志管理 ====================

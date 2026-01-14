@@ -21,6 +21,10 @@
         <div class="value">{{ summary.total_goods }}</div>
       </div>
       <div class="summary-item">
+        <div class="label">正常物品</div>
+        <div class="value text-success">{{ summary.total_goods_normal }}</div>
+      </div>
+      <div class="summary-item">
         <div class="label">库存总量</div>
         <div class="value">{{ summary.total_stock }}</div>
       </div>
@@ -115,17 +119,7 @@
           <span class="badge">{{ summary.warning_count }}</span>
         </div>
       </div>
-      <el-table :data="alertList" style="width: 100%" :header-cell-style="{background:'#fafafa'}" v-loading="loadingAlert">
-        <el-table-column prop="goods_name" label="物品名称" />
-        <el-table-column prop="current_stock" label="当前库存" align="right" />
-        <el-table-column prop="min_stock" label="安全库存" align="right" />
-        <el-table-column label="状态" align="center">
-          <template #default="{ row }">
-            <el-tag type="danger" v-if="row.current_stock === 0">缺货</el-tag>
-            <el-tag type="warning" v-else>库存不足</el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div ref="alertChartRef" class="chart-container sub-chart" v-loading="loadingAlert" style="height: 300px;"></div>
     </div>
   </div>
 </template>
@@ -134,16 +128,18 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
-import { getDataOverview, getStockTrend, getGoodsRanking, getCategoryStats } from '@/api/statistics'
+import { getDataOverview, getStockTrend, getGoodsRanking, getCategoryStats, getStockAlert } from '@/api/statistics'
 import { getGoodsList } from '@/api/goods'
 
 const trendChartRef = ref(null)
 const rankingChartRef = ref(null)
 const categoryChartRef = ref(null)
+const alertChartRef = ref(null)
 
 let trendChart = null
 let rankingChart = null
 let categoryChart = null
+let alertChart = null
 
 const loadingAlert = ref(false)
 const summary = reactive({
@@ -171,6 +167,82 @@ const loadSummary = async () => {
     const response = await getDataOverview()
     Object.assign(summary, response)
   } catch (error) { ElMessage.error('加载概览失败') }
+}
+
+const loadAlertList = async () => {
+  if (summary.warning_count === 0) return
+  
+  try {
+    loadingAlert.value = true
+    const response = await getStockAlert()
+    alertList.value = response.alert_list || []
+    renderAlertChart({ alert_list: response.alert_list, total_count: response.total_count })
+  } catch (error) {
+    ElMessage.error('加载预警列表失败')
+  } finally {
+    loadingAlert.value = false
+  }
+}
+
+const renderAlertChart = (data) => {
+  nextTick(() => {
+    if (!alertChart) alertChart = echarts.init(alertChartRef.value)
+    
+    const alertItems = data.alert_list || []
+    
+    const option = {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: (params) => {
+          const item = alertItems[params[0].dataIndex]
+          const percentage = ((1 - item.current_stock / item.min_stock) * 100).toFixed(0)
+          return `
+            <div style="padding: 8px;">
+              <div style="font-weight: bold; margin-bottom: 4px;">${item.goods_name}</div>
+              <div>当前库存: ${item.current_stock} ${item.unit || ''}</div>
+              <div>安全库存: ${item.min_stock} ${item.unit || ''}</div>
+              <div style="color: #ff4d4f;">缺口: ${percentage}%</div>
+            </div>
+          `
+        }
+      },
+      grid: { top: 5, right: 10, bottom: 20, left: 100, containLabel: true },
+      xAxis: {
+        type: 'value',
+        name: '数量',
+        nameTextStyle: { color: '#909399', fontSize: 12 },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { fontSize: 12, color: '#909399' },
+        splitLine: { lineStyle: { type: 'dashed', color: '#f0f0f0' } }
+      },
+      yAxis: {
+        type: 'category',
+        data: alertItems.map(item => item.goods_name),
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { fontSize: 13, color: '#333' }
+      },
+      series: [{
+        type: 'bar',
+        name: '当前库存',
+        data: alertItems.map(item => item.current_stock),
+        barWidth: 12,
+        itemStyle: { color: '#ff4d4f', borderRadius: [0, 3, 3, 0] },
+        label: { show: true, position: 'right', color: '#ff4d4f', formatter: '{c}', fontSize: 11 }
+      }, {
+        type: 'bar',
+        name: '安全库存',
+        data: alertItems.map(item => item.min_stock),
+        barWidth: 12,
+        itemStyle: { color: '#faad14d', borderRadius: [0, 3, 3, 0], opacity: 0.3 },
+        label: { show: true, position: 'right', color: '#faad14d', formatter: '{c}', fontSize: 11 }
+      }]
+    }
+    
+    alertChart.setOption(option, { notMerge: true })
+  })
 }
 
 const loadStockTrend = async () => {
@@ -239,12 +311,17 @@ const loadGoodsRanking = async () => {
     const response = await getGoodsRanking({ ranking_type: rankingType.value, top_n: 10 })
     rankingData.value = response.ranking_list
     renderRankingChart(response)
-  } catch (error) { ElMessage.error('加载排行失败') }
+  } catch (error) {
+    ElMessage.error('加载排行失败')
+  }
 }
 
 const renderRankingChart = (data) => {
   nextTick(() => {
     if (!rankingChart) rankingChart = echarts.init(rankingChartRef.value)
+    
+    const yAxisData = data.ranking_list.map(item => item.goods_name).reverse()
+    const seriesData = data.ranking_list.map(item => item.total_quantity).reverse()
     
     const option = {
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -252,19 +329,20 @@ const renderRankingChart = (data) => {
       xAxis: { type: 'value', show: false },
       yAxis: {
         type: 'category',
-        data: data.ranking_list.map(item => item.goods_name).reverse(),
+        data: yAxisData,
         axisLine: { show: false },
         axisTick: { show: false }
       },
       series: [{
         type: 'bar',
-        data: data.ranking_list.map(item => item.total_quantity).reverse(),
+        data: seriesData,
         barWidth: 16,
         itemStyle: { borderRadius: [0, 8, 8, 0], color: '#4096ff' },
         label: { show: true, position: 'right' }
       }]
     }
-    rankingChart.setOption(option)
+    
+    rankingChart.setOption(option, { notMerge: true })
   })
 }
 
@@ -304,7 +382,7 @@ const renderCategoryChart = (data) => {
 
 const loadGoodsList = async () => {
   try {
-    const response = await getGoodsList({ page: 1, page_size: 1000 })
+    const response = await getGoodsList({ page: 1, page_size: 20 })
     goodsList.value = response.items || []
   } catch (error) { ElMessage.error('加载物品列表失败') }
 }
@@ -318,10 +396,13 @@ onUnmounted(() => {
   if (trendChart) trendChart.dispose()
   if (rankingChart) rankingChart.dispose()
   if (categoryChart) categoryChart.dispose()
+  if (alertChart) alertChart.dispose()
 })
 
 onMounted(() => {
-  loadSummary()
+  loadSummary().then(() => {
+    loadAlertList()
+  })
   loadStockTrend()
   loadGoodsRanking()
   loadCategoryStats()
@@ -330,12 +411,14 @@ onMounted(() => {
     trendChart?.resize()
     rankingChart?.resize()
     categoryChart?.resize()
+    alertChart?.resize()
   })
 })
 
 watch([trendTimeRange, trendDateRange, selectedGoodsId], loadStockTrend)
 watch(rankingType, loadGoodsRanking)
 watch(categoryStatsType, loadCategoryStats)
+watch(() => summary.warning_count, () => loadAlertList())
 </script>
 
 <style scoped>
@@ -347,7 +430,7 @@ watch(categoryStatsType, loadCategoryStats)
 /* 顶部概览条 */
 .summary-section {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 24px;
   margin-bottom: 24px;
 }

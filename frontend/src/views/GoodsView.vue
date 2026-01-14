@@ -21,22 +21,26 @@
   <div class="goods-container">
     <!-- 工具栏 -->
     <el-card class="toolbar-card">
-      <el-form :inline="true" :model="searchForm">
-        <el-form-item label="搜索关键词">
+      <el-row :gutter="20">
+        <el-col :span="6">
           <el-input
             v-model="searchForm.search"
-            placeholder="物品名称/编码"
+            placeholder="搜索物品名称、编码"
             clearable
-            style="width: 200px"
-          />
-        </el-form-item>
-        
-        <el-form-item label="分类">
+            @clear="handleSearch"
+            @keyup.enter="handleSearch"
+          >
+            <template #append>
+              <el-button @click="handleSearch">搜索</el-button>
+            </template>
+          </el-input>
+        </el-col>
+        <el-col :span="4">
           <el-select
             v-model="searchForm.category_id"
-            placeholder="请选择分类"
+            placeholder="分类"
             clearable
-            style="width: 200px"
+            @change="handleSearch"
           >
             <el-option
               v-for="category in categories"
@@ -45,40 +49,39 @@
               :value="category.category_id"
             />
           </el-select>
-        </el-form-item>
-        
-        <el-form-item label="状态">
+        </el-col>
+        <el-col :span="4">
           <el-select
             v-model="searchForm.status"
-            placeholder="请选择状态"
+            placeholder="状态"
             clearable
-            style="width: 150px"
+            @change="handleSearch"
           >
             <el-option label="正常" :value="1" />
             <el-option label="报废" :value="2" />
             <el-option label="维修中" :value="3" />
           </el-select>
-        </el-form-item>
-        
-        <el-form-item>
-          <el-button type="primary" @click="loadGoodsList">搜索</el-button>
+        </el-col>
+        <el-col :span="6">
           <el-button @click="handleReset">重置</el-button>
-        </el-form-item>
-      </el-form>
-      
-      <el-button v-if="canManage" type="primary" @click="handleAdd">新增物品</el-button>
-      
-      <!-- 导入导出按钮组 -->
-      <el-button-group v-if="canManage">
-        <el-button @click="handleDownloadTemplate">下载模板</el-button>
-        <el-button @click="handleImport">批量导入</el-button>
-        <el-button @click="handleExport">导出列表</el-button>
-      </el-button-group>
+        </el-col>
+        <el-col :span="6" style="text-align: right;">
+          <el-button v-if="canManage" type="primary" @click="handleAdd">新增物品</el-button>
+          
+          <!-- 导入导出按钮组 -->
+          <el-button-group v-if="canManage">
+            <el-button @click="handleDownloadTemplate">下载模板</el-button>
+            <el-button @click="handleImport">批量导入</el-button>
+            <el-button @click="handleExport">导出列表</el-button>
+          </el-button-group>
+        </el-col>
+      </el-row>
     </el-card>
     
     <!-- 物品列表 -->
     <el-card class="table-card">
       <TableComponent
+        :key="tableKey"
         :data="goodsList"
         :loading="loading"
         :show-selection="false"
@@ -276,7 +279,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import TableComponent from '@/components/common/TableComponent.vue'
@@ -292,6 +295,11 @@ import {
   exportGoods
 } from '@/api'
 import { useUserStore } from '@/stores/user'
+
+/**
+ * 表格组件引用
+ */
+const tableRef = ref(null)
 
 /**
  * 用户状态管理
@@ -314,6 +322,11 @@ const loading = ref(false)
  * 提交状态
  */
 const submitLoading = ref(false)
+
+/**
+ * 表格组件的 key（用于强制重新渲染）
+ */
+const tableKey = ref(0)
 
 /**
  * 物品列表
@@ -450,7 +463,8 @@ const loadGoodsList = async () => {
       category_id: searchForm.category_id || undefined,
       status: searchForm.status || undefined
     })
-    goodsList.value = response.items
+    
+    goodsList.value = response.items || []
     pagination.total = response.total
   } catch (error) {
     ElMessage.error('加载物品列表失败')
@@ -488,6 +502,14 @@ const handlePageChange = (page) => {
  */
 const handleSizeChange = (limit) => {
   pagination.limit = limit
+  pagination.page = 1
+  loadGoodsList()
+}
+
+/**
+ * 处理搜索
+ */
+const handleSearch = () => {
   pagination.page = 1
   loadGoodsList()
 }

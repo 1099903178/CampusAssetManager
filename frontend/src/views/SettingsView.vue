@@ -4,204 +4,120 @@
  * 
  * 功能说明：
  * - 系统配置管理
- * - 操作日志查询
+ * - 系统重置功能
  *
  * 作者：CampusAssetManager开发团队
- * 日期：2026-01-10
+ * 日期：2026-01-13
  */
 
 <template>
     <div class="settings-container">
-      <el-tabs v-model="activeTab" type="border-card">
-        <!-- 系统配置 -->
-        <el-tab-pane label="系统配置" name="config">
-          <el-card v-for="group in configGroups" :key="group.category" style="margin-bottom: 20px;">
-            <template #header>
-              <div class="card-header">
-                <span>{{ group.category_name }}</span>
-              </div>
-            </template>
-            
-            <el-form :model="configForm" label-width="150px">
-              <el-form-item
-                v-for="config in group.configs"
-                :key="config.config_id"
-                :label="config.config_name"
-              >
-                <!-- 字符串类型 -->
-                <el-input
-                  v-if="config.config_type === 'string'"
-                  v-model="configForm[config.config_key]"
-                  :placeholder="'请输入' + config.config_name"
-                />
-                
-                <!-- 数字类型 -->
-                <el-input-number
-                  v-else-if="config.config_type === 'number'"
-                  v-model="configForm[config.config_key]"
-                  :min="0"
-                />
-                
-                <!-- 布尔类型 -->
-                <el-switch
-                  v-else-if="config.config_type === 'boolean'"
-                  v-model="configForm[config.config_key]"
-                />
-                
-                <!-- JSON类型 -->
-                <el-input
-                  v-else-if="config.config_type === 'json'"
-                  v-model="configForm[config.config_key]"
-                  type="textarea"
-                  :placeholder="'请输入' + config.config_name + '（JSON格式）'"
-                />
-              </el-form-item>
-            </el-form>
-          </el-card>
-          
-          <div style="text-align: right; margin-top: 20px;">
-            <el-button type="primary" @click="handleSaveConfig" :loading="loading">保存配置</el-button>
+      <!-- 系统配置卡片列表 -->
+      <el-card v-for="group in configGroups" :key="group.category" style="margin-bottom: 20px;">
+        <template #header>
+          <div class="card-header">
+            <span>{{ group.category_name }}</span>
           </div>
-        </el-tab-pane>
+        </template>
         
-        <!-- 操作日志 -->
-        <el-tab-pane label="操作日志" name="logs">
-          <el-card>
-            <template #header>
-              <div class="card-header">
-                <span>操作日志</span>
-                <el-button type="primary" size="small" @click="handleExportLogs">导出日志</el-button>
-              </div>
-            </template>
-            
-            <div class="filter-form">
-              <div class="filter-item">
-                <label>
-                  <span class="label-text">操作人：</span>
-                </label>
-                <el-input v-model="logSearchForm.username" placeholder="请输入操作人" clearable style="width: 150px;" />
-              </div>
-              
-              <div class="filter-item">
-                <label>
-                  <span class="label-text">操作类型：</span>
-                </label>
-                <el-select v-model="logSearchForm.operation" placeholder="请选择操作类型" clearable style="width: 150px;">
-                  <el-option label="登录" value="login" />
-                  <el-option label="创建" value="create" />
-                  <el-option label="更新" value="update" />
-                  <el-option label="删除" value="delete" />
-                  <el-option label="入库" value="stock_in" />
-                  <el-option label="出库" value="stock_out" />
-                  <el-option label="盘点" value="check" />
-                </el-select>
-              </div>
-              
-              <div class="filter-item">
-                <label>
-                  <span class="label-text">模块：</span>
-                </label>
-                <el-select v-model="logSearchForm.module" placeholder="请选择模块" clearable style="width: 150px;">
-                  <el-option label="认证" value="auth" />
-                  <el-option label="物品" value="goods" />
-                  <el-option label="库存" value="stock" />
-                  <el-option label="用户" value="user" />
-                  <el-option label="系统" value="system" />
-                </el-select>
-              </div>
-              
-              <div class="filter-item">
-                <label>
-                  <span class="label-text">时间范围：</span>
-                </label>
-                <el-date-picker
-                  v-model="logSearchForm.dateRange"
-                  type="daterange"
-                  range-separator="至"
-                  start-placeholder="开始日期"
-                  end-placeholder="结束日期"
-                  size="default"
-                />
-              </div>
-              
-              <div class="filter-item">
-                <el-button type="primary" @click="handleSearch">搜索</el-button>
-                <el-button @click="handleResetLogs">重置</el-button>
-              </div>
-            </div>
-            
-            <el-table
-              :data="logList"
-              style="width: 100%"
-              v-loading="loading"
-            >
-              <el-table-column prop="log_id" label="ID" width="80" align="center" />
-              <el-table-column prop="username" label="操作人" width="120" />
-              <el-table-column prop="operation" label="操作类型" width="120">
-                <template #default="{ row }">
-                  <el-tag :type="getOperationType(row.operation)">
-                    {{ getOperationText(row.operation) }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="module" label="模块" width="100" />
-              <el-table-column prop="url" label="请求URL" min-width="200" show-overflow-tooltip />
-              <el-table-column prop="result" label="结果" width="100">
-                <template #default="{ row }">
-                  <el-tag :type="row.result === 'success' ? 'success' : 'danger'">
-                    {{ row.result === 'success' ? '成功' : '失败' }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="ip_address" label="IP地址" width="140" />
-              <el-table-column prop="create_time" label="操作时间" width="180">
-                <template #default="{ row }">
-                  {{ formatDateTime(row.create_time) }}
-                </template>
-              </el-table-column>
-            </el-table>
-            
-            <!-- 分页 -->
-            <el-pagination
-              :current-page="logPagination.page"
-              :page-size="logPagination.page_size"
-              :page-sizes="[10, 20, 50, 100]"
-              :total="logPagination.total"
-              layout="total, sizes, prev, pager, next, jumper"
-              @size-change="handleLogSizeChange"
-              @current-change="handleLogPageChange"
-              style="margin-top: 20px; justify-content: flex-end;"
+        <el-form :model="configForm" label-width="150px">
+          <el-form-item
+            v-for="config in group.configs"
+            :key="config.config_id"
+            :label="config.config_name"
+          >
+            <!-- 字符串类型 -->
+            <el-input
+              v-if="config.config_type === 'string'"
+              v-model="configForm[config.config_key]"
+              :placeholder="'请输入' + config.config_name"
             />
-          </el-card>
-        </el-tab-pane>
-      </el-tabs>
+            
+            <!-- 数字类型 -->
+            <el-input-number
+              v-else-if="config.config_type === 'number'"
+              v-model="configForm[config.config_key]"
+              :min="0"
+            />
+            
+            <!-- 布尔类型 -->
+            <el-switch
+              v-else-if="config.config_type === 'boolean'"
+              v-model="configForm[config.config_key]"
+            />
+            
+            <!-- JSON类型 -->
+            <el-input
+              v-else-if="config.config_type === 'json'"
+              v-model="configForm[config.config_key]"
+              type="textarea"
+              :placeholder="'请输入' + config.config_name + '（JSON格式）'"
+            />
+          </el-form-item>
+        </el-form>
+      </el-card>
+      
+      <div style="text-align: right; margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+        <el-button type="primary" @click="handleSaveConfig" :loading="loading">保存配置</el-button>
+        <el-button type="danger" @click="handleResetClick" :loading="resetLoading">系统重置</el-button>
+      </div>
     </div>
+    
+    <!-- 系统重置确认对话框 -->
+    <el-dialog
+      v-model="resetDialogVisible"
+      title="系统重置"
+      width="400px"
+      :close-on-click-modal="false"
+    >
+      <el-alert
+        title="危险操作警告"
+        type="error"
+        :closable="false"
+        style="margin-bottom: 20px;"
+      >
+        <template #default>
+          <div>系统重置将清空所有数据，包括：</div>
+          <div>• 物品分类和物品信息</div>
+          <div>• 库存数据</div>
+          <div>• 出入库记录</div>
+          <div>• 盘点记录</div>
+          <div>• 操作日志</div>
+          <div>• 系统配置（将恢复默认配置）</div>
+          <div style="margin-top: 10px; font-weight: bold;">此操作不可逆，请谨慎操作！</div>
+        </template>
+      </el-alert>
+      
+      <el-form :model="resetForm" label-width="100px">
+        <el-form-item label="管理员密码">
+          <el-input
+            v-model="resetForm.password"
+            type="password"
+            placeholder="请输入管理员密码"
+            show-password
+          />
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="resetDialogVisible = false">取消</el-button>
+          <el-button type="danger" @click="handleConfirmReset" :loading="resetLoading">确认重置</el-button>
+        </span>
+      </template>
+    </el-dialog>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch, nextTick } from 'vue'
-import { ElMessage } from 'element-plus'
-import { getConfigs, updateConfig, getOperationLogs } from '@/api'
-import { syncStockThresholds } from '@/api/stock'
-import { useUserStore } from '@/stores/user'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getConfigs, updateConfig, resetSystem } from '@/api'
 
 /**
- * 当前激活的Tab
+ * 路由实例
  */
-const activeTab = ref('config')
-
-/**
- * 标记Tab是否已加载过（避免重复加载）
- */
-const tabLoaded = reactive({
-  config: false,
-  logs: false
-})
-
-/**
- * 加载状态
- */
-const loading = ref(false)
+const router = useRouter()
 
 /**
  * 配置分组列表
@@ -214,93 +130,26 @@ const configGroups = ref([])
 const configForm = reactive({})
 
 /**
- * 日志搜索表单
+ * 加载状态
  */
-const logSearchForm = reactive({
-  username: '',
-  operation: '',
-  module: '',
-  dateRange: []
+const loading = ref(false)
+
+/**
+ * 重置对话框可见性
+ */
+const resetDialogVisible = ref(false)
+
+/**
+ * 重置加载状态
+ */
+const resetLoading = ref(false)
+
+/**
+ * 重置表单
+ */
+const resetForm = reactive({
+  password: ''
 })
-
-/**
- * 日志列表
- */
-const logList = ref([])
-
-/**
- * 日志分页数据
- */
-const logPagination = reactive({
-  page: 1,
-  page_size: 20,
-  total: 0
-})
-
-/**
- * 获取操作类型标签样式
- *
- * @param {string} operation - 操作类型
- * @returns {string} 标签样式类型
- */
-const getOperationType = (operation) => {
-  const typeMap = {
-    'login': 'success',
-    'create': 'primary',
-    'update': 'warning',
-    'delete': 'danger',
-    'stock_in': 'success',
-    'stock_out': 'warning',
-    'check': 'info'
-  }
-  return typeMap[operation] || 'info'
-}
-
-/**
- * 获取操作类型文本
- *
- * @param {string} operation - 操作类型
- * @returns {string} 操作类型文本
- */
-const getOperationText = (operation) => {
-  const textMap = {
-    'login': '登录',
-    'create': '创建',
-    'update': '更新',
-    'delete': '删除',
-    'stock_in': '入库',
-    'stock_out': '出库',
-    'check': '盘点',
-    'query': '查询',
-    'update_config': '修改配置',
-    'query_config': '查看配置'
-  }
-  return textMap[operation] || operation
-}
-
-/**
- * 格式化日期时间（UTC+8时区）
- *
- * @param {string} datetime - 日期时间字符串（UTC）
- * @returns {string} 格式化后的日期时间（本地时间 UTC+8）
- */
-const formatDateTime = (datetime) => {
-  if (!datetime) return ''
-  const date = new Date(datetime)
-  
-  // 转换为本地时间（UTC+8小时）
-  const localTime = new Date(date.getTime() + 8 * 60 * 60 * 1000)
-  
-  // 手动拼接格式化字符串
-  const year = localTime.getFullYear()
-  const month = String(localTime.getMonth() + 1).padStart(2, '0')
-  const day = String(localTime.getDate()).padStart(2, '0')
-  const hours = String(localTime.getHours()).padStart(2, '0')
-  const minutes = String(localTime.getMinutes()).padStart(2, '0')
-  const seconds = String(localTime.getSeconds()).padStart(2, '0')
-  
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-}
 
 /**
  * 加载系统配置
@@ -308,7 +157,8 @@ const formatDateTime = (datetime) => {
 const loadConfig = async () => {
   try {
     const response = await getConfigs()
-    configGroups.value = response.configs
+    // 过滤掉库存配置模块（category为'stock'）
+    configGroups.value = response.configs.filter(group => group.category !== 'stock')
     
     // 将配置值绑定到configForm
     Object.keys(configForm).forEach(key => delete configForm[key])
@@ -363,111 +213,46 @@ const handleSaveConfig = async () => {
 }
 
 /**
- * 加载操作日志
- * @param {number} overridePage - 可选：覆盖当前页码（用于处理响应式更新延迟）
- * @param {number} overridePageSize - 可选：覆盖每页大小（用于处理响应式更新延迟）
+ * 处理重置按钮点击
  */
-const loadOperationLogs = async (overridePage = null, overridePageSize = null) => {
-  try {
-    loading.value = true
-    
-    // 构建查询参数（使用传入的覆盖值，或当前值）
-    const params = {
-      page: overridePage !== null ? overridePage : logPagination.page,
-      page_size: overridePageSize !== null ? overridePageSize : logPagination.page_size
-    }
-    
-    // 只有当值不为空时才添加参数
-    if (logSearchForm.username) {
-      params.username = logSearchForm.username
-    }
-    if (logSearchForm.operation) {
-      params.operation = logSearchForm.operation
-    }
-    if (logSearchForm.module) {
-      params.module = logSearchForm.module
-    }
-    
-    // 处理时间范围
-    if (logSearchForm.dateRange && logSearchForm.dateRange.length === 2) {
-      params.start_date = formatDateToString(logSearchForm.dateRange[0])
-      params.end_date = formatDateToString(logSearchForm.dateRange[1])
-    }
-    
-    const response = await getOperationLogs(params)
-    logList.value = response.items
-    logPagination.total = response.total
-    logPagination.page = response.page
-    logPagination.page_size = response.page_size
-  } catch (error) {
-    console.error('加载操作日志失败:', error)
-    ElMessage.error('加载操作日志失败')
-  } finally {
-    loading.value = false
+const handleResetClick = () => {
+  resetForm.password = ''
+  resetDialogVisible.value = true
+}
+
+/**
+ * 处理确认重置
+ */
+const handleConfirmReset = async () => {
+  if (!resetForm.password) {
+    ElMessage.warning('请输入管理员密码')
+    return
   }
-}
-
-/**
- * 格式化日期为字符串
- *
- * @param {Date} date - 日期对象
- * @returns {string} 日期字符串
- */
-const formatDateToString = (date) => {
-  if (!date) return ''
-  const d = new Date(date)
-  return d.toISOString().split('T')[0]
-}
-
-/**
- * 处理日志页码变化
- *
- * @param {number} page - 页码
- */
-const handleLogPageChange = (page) => {
-  logPagination.page = page
-  // 使用 nextTick 确保状态更新完成后再发送请求
-  nextTick(() => {
-    loadOperationLogs(page, logPagination.page_size)
-  })
-}
-
-/**
- * 处理日志每页数量变化
- *
- * @param {number} size - 每页数量
- */
-const handleLogSizeChange = (size) => {
-  logPagination.page_size = size
-  // 直接传递每页大小和当前页码，避免响应式更新延迟
-  loadOperationLogs(logPagination.page, size)
-}
-
-/**
- * 处理搜索按钮点击
- */
-const handleSearch = () => {
-  logPagination.page = 1
-  loadOperationLogs()
-}
-
-/**
- * 处理导出日志
- */
-const handleExportLogs = () => {
-  ElMessage.info('导出日志功能待实现')
-}
-
-/**
- * 处理重置日志搜索
- */
-const handleResetLogs = () => {
-  logSearchForm.username = ''
-  logSearchForm.operation = ''
-  logSearchForm.module = ''
-  logSearchForm.dateRange = []
-  logPagination.page = 1
-  loadOperationLogs()
+  
+  try {
+    resetLoading.value = true
+    
+    await resetSystem({
+      password: resetForm.password
+    })
+    
+    ElMessage.success('系统重置成功')
+    resetDialogVisible.value = false
+    
+    // 跳转到首页
+    router.push('/home')
+  } catch (error) {
+    console.error('系统重置失败:', error)
+    const errorMessage = error.response?.data?.detail || error.message || '系统重置失败'
+    
+    if (errorMessage.includes('密码')) {
+      ElMessage.error('密码错误，重置操作被拒绝')
+    } else {
+      ElMessage.error(errorMessage)
+    }
+  } finally {
+    resetLoading.value = false
+  }
 }
 
 /**
@@ -475,21 +260,6 @@ const handleResetLogs = () => {
  */
 onMounted(() => {
   loadConfig()
-  loadOperationLogs() // 页面加载时直接加载日志
-})
-
-
-/**
- * 监听Tab切换
- */
-watch(activeTab, (newTab, oldTab) => {
-  if (newTab === 'logs' && !tabLoaded.logs) {
-    loadOperationLogs()
-    tabLoaded.logs = true
-  } else if (newTab === 'config' && !tabLoaded.config) {
-    loadConfig()
-    tabLoaded.config = true
-  }
 })
 </script>
 
@@ -511,31 +281,11 @@ watch(activeTab, (newTab, oldTab) => {
 }
 
 /**
- * 筛选表单布局
+ * 对话框底部按钮
  */
-.filter-form {
+.dialog-footer {
   display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-/**
- * 筛选项布局
- */
-.filter-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.filter-item label {
-  white-space: nowrap;
-  margin-right: 8px;
-}
-
-.label-text {
-  display: inline-block;
+  justify-content: flex-end;
+  gap: 10px;
 }
 </style>

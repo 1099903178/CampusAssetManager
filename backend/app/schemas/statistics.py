@@ -20,6 +20,78 @@ from typing import Optional, List
 from datetime import datetime
 
 
+class StockAlertItem(BaseModel):
+    """
+    库存预警数据项模型
+    """
+    goods_id: int = Field(
+        ...,
+        description="物品ID",
+        example=1
+    )
+    
+    goods_name: str = Field(
+        ...,
+        description="物品名称",
+        example="笔记本电脑"
+    )
+    
+    current_stock: int = Field(
+        ...,
+        description="当前库存",
+        example=5
+    )
+    
+    min_stock: int = Field(
+        ...,
+        description="安全库存（最小库存阈值）",
+        example=10
+    )
+    
+    class Config:
+        """Pydantic配置"""
+        json_schema_extra = {
+            "example": {
+                "goods_id": 1,
+                "goods_name": "笔记本电脑",
+                "current_stock": 5,
+                "min_stock": 10
+            }
+        }
+
+
+class StockAlertResponse(BaseModel):
+    """
+    库存预警响应模型
+    """
+    alert_list: List[StockAlertItem] = Field(
+        ...,
+        description="库存预警列表"
+    )
+    
+    total_count: int = Field(
+        ...,
+        description="预警总数",
+        example=5
+    )
+    
+    class Config:
+        """Pydantic配置"""
+        json_schema_extra = {
+            "example": {
+                "alert_list": [
+                    {
+                        "goods_id": 1,
+                        "goods_name": "笔记本电脑",
+                        "current_stock": 5,
+                        "min_stock": 10
+                    }
+                ],
+                "total_count": 1
+            }
+        }
+
+
 class StatisticsOverview(BaseModel):
     """
     数据概览响应模型
@@ -29,8 +101,15 @@ class StatisticsOverview(BaseModel):
     # 物品统计
     total_goods: int = Field(
         ...,
-        description="物品总数（状态正常的物品数量）",
+        description="物品总数（所有状态的物品数量）",
         example=150
+    )
+    
+    # 物品统计（正常物品）
+    total_goods_normal: int = Field(
+        ...,
+        description="正常物品总数（状态正常的物品数量）",
+        example=120
     )
     
     # 库存统计

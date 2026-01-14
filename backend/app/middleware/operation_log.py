@@ -292,8 +292,25 @@ class OperationLogMiddleware(BaseHTTPMiddleware):
             else:
                 return "query_config", "system"
         
-        # 默认
-        return "api_request", "system"
+        # 系统重置
+        if "/system/reset" in path and method == "POST":
+            return "系统重置", "system"
+        
+        # 统计查询（匹配 /statistics）
+        if "/statistics" in path:
+            return "查询", "statistics"
+        
+        # 默认：根据HTTP方法返回通用操作类型
+        if method == "GET":
+            return "查询", "未知模块"
+        elif method == "POST":
+            return "创建", "未知模块"
+        elif method == "PUT":
+            return "更新", "未知模块"
+        elif method == "DELETE":
+            return "删除", "未知模块"
+        else:
+            return "unknown", "unknown"
     
     def _filter_sensitive_data(self, data: dict) -> dict:
         """

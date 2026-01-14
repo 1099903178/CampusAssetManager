@@ -198,12 +198,6 @@ class StockService:
         except Exception as e:
             db.rollback()
             raise Exception(f"创建入库记录失败: {str(e)}")
-            
-        finally:
-            try:
-                db.commit()
-            except:
-                pass
     
     def get_stock_in_list(
         self,
