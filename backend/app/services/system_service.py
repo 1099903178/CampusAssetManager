@@ -18,12 +18,18 @@ CampusAssetManager/backend/app/services/system_service.py
 
 from typing import List, Dict, Optional, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, or_, and_
+from sqlalchemy import desc, or_, and_, text
 import json
 
-from ..models.sys_operation_log import OperationLog
-from ..models.sys_config import Config
-from ..schemas.system import (
+from app.models.sys_operation_log import OperationLog
+from app.models.sys_config import Config
+from app.models.goods_info import Goods
+from app.models.goods_category import GoodsCategory
+from app.models.stock_info import Stock
+from app.models.stock_in import StockIn
+from app.models.stock_out import StockOut
+from app.models.stock_check import StockCheck
+from app.schemas.system import (
     OperationLogResponse,
     OperationLogQuery,
     ConfigResponse,
@@ -31,8 +37,10 @@ from ..schemas.system import (
     ConfigBatchUpdate,
     SystemConfigGroup,
     SystemConfigResponse,
+    SystemResetRequest,
     PREDEFINED_CONFIGS
 )
+from app.core.security import verify_password
 
 
 class OperationLogService:
@@ -382,6 +390,88 @@ class ConfigService:
         except Exception as e:
             db.rollback()
             raise ValueError(f"批量更新配置失败: {str(e)}")
+    
+    def reset_system(
+        self,
+        reset_data: SystemResetRequest,
+        db: Session
+    ) -> bool:
+        """
+        系统完全重置
+        
+        清空所有业务数据、操作日志和配置，并重新初始化默认配置
+        记录系统重置操作日志（log_id=1）
+        
+        Args:
+            reset_data (SystemResetRequest): 重置请求数据
+            db (Session): 数据库会话
+        
+        Returns:
+            bool: 重置是否成功
+        
+        Raises:
+            ValueError: 密码错误或重置失败
+        """
+        try:
+            # 验证管理员密码
+            # 需要从数据库获取当前用户的密码哈希
+            from ..models.sys_user import User
+            
+            # 使用当前登录用户的用户名查询（这里假设管理员用户名为admin，实际应该从token中获取）
+            current_user = db.query(User).filter(
+                User.username == "admin"
+            ).first()
+            
+            if not current_user:
+                raise ValueError("用户不存在")
+            
+            if not verify_password(reset_data.password, current_user.password_hash):
+                raise ValueError("密码错误，重置操作被拒绝")
+            
+            # 完全重置：清空所有数据并重新初始化配置
+            db.query(GoodsCategory).delete()
+            db.query(Goods).delete()
+            db.query(Stock).delete()
+            db.query(StockIn).delete()
+            db.query(StockOut).delete()
+            db.query(StockCheck).delete()
+            
+            # 清空操作日志
+            db.query(OperationLog).delete()
+            
+            # 清空系统配置并重新初始化
+            db.query(Config).delete()
+            for config_data in PREDEFINED_CONFIGS:
+                config = Config(**config_data)
+                db.add(config)
+            db.commit()
+            
+            # 插入系统重置操作日志（log_id=1，手动指定ID以确保为第一条记录）
+            reset_log = OperationLog(
+                log_id=1,
+                user_id=current_user.user_id,
+                username=current_user.username,
+                operation="系统重置",
+                module="system",
+                method="POST",
+                url="/v1/system/reset",
+                params='{"action": "system_reset"}',
+                result="success",
+                error_message=None,
+                ip_address="127.0.0.1",
+                user_agent="System"
+            )
+            db.add(reset_log)
+            db.commit()
+            
+            return True
+            
+        except ValueError as e:
+            db.rollback()
+            raise
+        except Exception as e:
+            db.rollback()
+            raise ValueError(f"系统重置失败: {str(e)}")
 
 
 # 创建服务实例

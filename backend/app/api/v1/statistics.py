@@ -25,7 +25,8 @@ from ...schemas.statistics import (
     StatisticsOverview,
     StockTrendResponse,
     GoodsRankingResponse,
-    CategoryStatsResponse
+    CategoryStatsResponse,
+    StockAlertResponse
 )
 from ...schemas.common import BaseResponse
 from ...schemas.user import UserResponse
@@ -382,4 +383,73 @@ async def get_category_stats(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"获取分类统计失败: {str(e)}"
+        )
+
+
+@router.get(
+    "/stock-alert",
+    summary="获取库存预警列表",
+    description="获取当前库存低于最小阈值的物品列表"
+)
+async def get_stock_alert(
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user)
+) -> BaseResponse[StockAlertResponse]:
+    """
+    获取库存预警列表
+    
+    权限要求：所有登录用户都可以访问
+    
+    预警条件：当前库存 < 安全库存阈值
+    
+    Args:
+        db (Session): 数据库会话
+        current_user (User): 当前登录用户
+    
+    Returns:
+        StockAlertResponse: 库存预警列表响应
+    
+    Raises:
+        HTTPException: 当获取预警数据失败时抛出500错误
+    
+    Examples:
+        GET /v1/statistics/stock-alert
+        
+        响应示例：
+        {
+            "code": 200,
+            "message": "成功",
+            "data": {
+                "alert_list": [
+                    {
+                        "goods_id": 1,
+                        "goods_name": "笔记本电脑",
+                        "current_stock": 5,
+                        "min_stock": 10
+                    }
+                ],
+                "total_count": 1
+            }
+        }
+    """
+    try:
+        # 调用统计服务获取库存预警列表
+        alert = StatisticsService.get_stock_alert(db)
+        
+        # 返回统一格式的响应
+        return {
+            "code": 200,
+            "message": "成功",
+            "data": alert
+        }
+        
+    except HTTPException:
+        # 重新抛出HTTP异常
+        raise
+        
+    except Exception as e:
+        # 捕获其他异常并返回500错误
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取库存预警失败: {str(e)}"
         )

@@ -89,7 +89,7 @@ export const deleteCategory = (categoryId) => {
  * @returns {Promise} 返回Promise对象
  */
 export const getGoodsList = (params) => {
-  return http.get('/v1/goods/', params)
+  return http.get('/v1/goods', { params })
 }
 
 /**

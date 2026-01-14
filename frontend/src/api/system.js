@@ -54,11 +54,11 @@ export const getOperationLogs = (params) => {
 }
 
 /**
- * 导出操作日志
+ * 系统重置
  *
- * @param {Object} params - 查询参数
+ * @param {Object} data - 重置数据 { password, reset_type }
  * @returns {Promise} 返回Promise对象
  */
-export const exportLogs = (params) => {
-  return http.download('/v1/system/logs/export', params, 'operation_logs.xlsx')
+export const resetSystem = (data) => {
+  return http.post('/v1/system/reset', data)
 }

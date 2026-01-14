@@ -61,7 +61,18 @@ export const getStockTrend = (params = {}) => {
  * @returns {Promise} 返回Promise对象，包含物品排行榜数据
  */
 export const getGoodsRanking = (params = { ranking_type: 'in', top_n: 10 }) => {
-  return http.get('/v1/statistics/goods-ranking', params)
+  const queryParams = new URLSearchParams()
+  if (params.ranking_type) {
+    queryParams.append('ranking_type', params.ranking_type)
+  }
+  if (params.top_n) {
+    queryParams.append('top_n', params.top_n)
+  }
+  
+  const queryString = queryParams.toString()
+  const url = `/v1/statistics/goods-ranking${queryString ? '?' + queryString : ''}`
+  
+  return http.get(url)
 }
 
 /**
@@ -72,7 +83,16 @@ export const getGoodsRanking = (params = { ranking_type: 'in', top_n: 10 }) => {
  * @returns {Promise} 返回Promise对象，包含分类统计数据
  */
 export const getCategoryStats = (params = { stats_type: 'stock' }) => {
-  return http.get('/v1/statistics/category-stats', params)
+  // 使用URLSearchParams构建查询参数
+  const queryParams = new URLSearchParams()
+  if (params.stats_type) {
+    queryParams.append('stats_type', params.stats_type)
+  }
+  
+  const queryString = queryParams.toString()
+  const url = `/v1/statistics/category-stats${queryString ? '?' + queryString : ''}`
+  
+  return http.get(url)
 }
 
 /**

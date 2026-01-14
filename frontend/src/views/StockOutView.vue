@@ -348,7 +348,7 @@ const loadStockOutList = async () => {
 // 加载物品列表
 const loadGoodsList = async () => {
   try {
-    const data = await getGoodsList({ page: 1, page_size: 1000 })
+    const data = await getGoodsList({ page: 1, page_size: 20 })
     goodsList.value = data.items
   } catch (error) {
     console.error('加载物品列表失败:', error)

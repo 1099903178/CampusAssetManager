@@ -34,7 +34,7 @@ const routes = [
         path: 'home',
         name: 'Home',
         component: () => import('@/views/HomeView.vue'),
-        meta: { title: '首页', requiresAuth: false }
+        meta: { title: '首页', requiresAuth: true }
       },
       {
         path: 'goods',
@@ -71,6 +71,12 @@ const routes = [
         name: 'Statistics',
         component: () => import('@/views/StatisticsView.vue'),
         meta: { title: '统计报表', requiresAuth: true }
+      },
+      {
+        path: 'logs',
+        name: 'Logs',
+        component: () => import('@/views/LogsView.vue'),
+        meta: { title: '操作日志', requiresAuth: true }
       },
       {
         path: 'users',

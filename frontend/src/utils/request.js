@@ -52,11 +52,11 @@ service.interceptors.request.use(
     }
     
     /**
-     * 添加请求时间戳，防止浏览器缓存
-     */
+      * 添加请求时间戳，防止浏览器缓存
+      */
     if (config.method === 'get') {
       // 确保params存在且不为undefined，避免参数丢失
-      if (!config.params || config.params === undefined) {
+      if (!config.params) {
         config.params = {}
       }
       config.params._t = Date.now()
@@ -211,7 +211,7 @@ export default service
 export const http = {
   /**
    * GET 请求
-   * 
+   *
    * @param {string} url - 请求地址
    * @param {Object} params - 请求参数
    * @param {Object} config - 请求配置
@@ -221,10 +221,9 @@ export const http = {
     // 确保params是一个对象，避免undefined
     const requestParams = params || {}
     
-    // 创建完整配置对象，确保url和params正确传递
+    // 创建完整配置对象，确保params包含在config中
     const fullConfig = {
       ...config,
-      method: 'get',
       params: requestParams
     }
     

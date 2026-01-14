@@ -142,10 +142,10 @@
               @change="handleInGoodsChange"
             >
               <el-option
-                v-for="goods in allGoodsList"
-                :key="goods.goods_id"
-                :label="`${goods.goods_name} (${goods.goods_code})`"
-                :value="goods.goods_id"
+                v-for="item in stockList"
+                :key="item.goods_id"
+                :label="`${item.goods_name} (${item.goods_code}) - 库存: ${item.current_stock || 0}`"
+                :value="item.goods_id"
               />
             </el-select>
           </el-form-item>
@@ -701,15 +701,15 @@ const loadStockList = async () => {
 }
 
 /**
- * 加载所有物品列表（用于入库选择）
+ * 加载所有物品列表（用于入库单价读取）
  */
 const loadAllGoodsList = async () => {
   try {
     // 响应拦截器已自动处理，直接返回 data
+    // 不传递status参数，加载所有状态的物品（包括非正常状态的物品）
     const response = await getGoodsList({
       page: 1,
-      page_size: 1000,
-      status: 1  // 仅加载正常状态的物品
+      page_size: 100  // 加载足够多的物品，确保包含所有状态的物品
     })
     allGoodsList.value = response.items
   } catch (error) {

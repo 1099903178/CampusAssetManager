@@ -35,6 +35,7 @@ from datetime import datetime
 
 from ..models.goods_category import GoodsCategory
 from ..models.goods_info import Goods
+from ..models.stock_info import Stock
 from ..schemas.goods import (
     CategoryCreate,
     CategoryUpdate,
@@ -799,6 +800,16 @@ class GoodsService:
                 
                 db.add(new_goods)
                 db.flush()
+                
+                # 自动创建库存记录（库存默认为0）
+                new_stock = Stock(
+                    goods_id=new_goods.goods_id,
+                    current_stock=0,
+                    total_value=0.0,
+                    min_stock=0
+                )
+                db.add(new_stock)
+                
                 success_count += 1
                 
             except Exception as e:

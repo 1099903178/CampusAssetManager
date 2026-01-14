@@ -15,6 +15,7 @@ CampusAssetManager/backend/app/models/stock_info.py
 """
 
 from sqlalchemy import Column, Integer, Float, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..database.config import Base
 
@@ -74,6 +75,13 @@ class Stock(Base):
         Integer,
         nullable=True,
         comment="最大库存阈值（高于此值预警）"
+    )
+
+    # 定义关系：一个库存对应一个物品
+    goods = relationship(
+        "Goods",
+        back_populates=None,
+        lazy="select"
     )
 
     # 时间戳
