@@ -20,6 +20,11 @@ from typing import List, Dict, Optional, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, or_, and_, text
 import json
+import os
+import shutil
+import sqlite3
+from datetime import datetime
+from pathlib import Path
 
 from app.models.sys_operation_log import OperationLog
 from app.models.sys_config import Config
@@ -38,7 +43,12 @@ from app.schemas.system import (
     SystemConfigGroup,
     SystemConfigResponse,
     SystemResetRequest,
-    PREDEFINED_CONFIGS
+    PREDEFINED_CONFIGS,
+    BackupFileResponse,
+    BackupListResponse,
+    BackupCreateResponse,
+    RestoreResponse,
+    RestoreRequest
 )
 from app.core.security import verify_password
 
@@ -474,6 +484,249 @@ class ConfigService:
             raise ValueError(f"系统重置失败: {str(e)}")
 
 
+class BackupRestoreService:
+    """
+    数据备份恢复服务类
+    
+    负责数据备份、恢复和备份文件管理功能
+    """
+    
+    # 备份文件存储目录
+    BACKUP_DIR = Path("backups")
+    
+    # 数据库文件路径
+    DB_FILE = "campus_asset.db"
+    
+    def __init__(self):
+        """
+        初始化备份恢复服务
+        
+        确保备份目录存在
+        """
+        # 确保备份目录存在
+        self.BACKUP_DIR.mkdir(exist_ok=True)
+    
+    def _format_file_size(self, size: int) -> str:
+        """
+        格式化文件大小为人类可读格式
+        
+        Args:
+            size (int): 文件大小（字节）
+        
+        Returns:
+            str: 格式化后的文件大小
+        """
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024.0:
+                return f"{size:.2f} {unit}"
+            size /= 1024.0
+        return f"{size:.2f} TB"
+    
+    def create_backup(self) -> BackupCreateResponse:
+        """
+        创建数据库备份
+        
+        使用SQLite的.backup命令进行备份
+        
+        Returns:
+            BackupCreateResponse: 备份文件信息
+        
+        Raises:
+            ValueError: 备份失败
+        """
+        try:
+            # 生成备份文件名
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_filename = f"campus_asset_backup_{timestamp}.db"
+            backup_path = self.BACKUP_DIR / backup_filename
+            
+            # 检查源数据库文件是否存在
+            if not os.path.exists(self.DB_FILE):
+                raise ValueError("数据库文件不存在")
+            
+            # 使用SQLite的.backup命令进行备份
+            source_conn = sqlite3.connect(self.DB_FILE)
+            backup_conn = sqlite3.connect(str(backup_path))
+            
+            try:
+                source_conn.backup(backup_conn)
+            finally:
+                source_conn.close()
+                backup_conn.close()
+            
+            # 获取备份文件大小
+            file_size = os.path.getsize(backup_path)
+            
+            # 创建时间
+            create_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            return BackupCreateResponse(
+                filename=backup_filename,
+                create_time=create_time,
+                size=file_size,
+                size_human=self._format_file_size(file_size)
+            )
+        except Exception as e:
+            raise ValueError(f"创建备份失败: {str(e)}")
+    
+    def get_backup_list(self) -> BackupListResponse:
+        """
+        获取备份文件列表
+        
+        Returns:
+            BackupListResponse: 备份文件列表
+        
+        Raises:
+            ValueError: 获取列表失败
+        """
+        try:
+            backups = []
+            
+            if not self.BACKUP_DIR.exists():
+                return BackupListResponse(backups=backups, total=0)
+            
+            # 遍历备份目录
+            for file_path in sorted(self.BACKUP_DIR.glob("campus_asset_backup_*.db"), reverse=True):
+                # 提取文件信息
+                stat = file_path.stat()
+                file_size = stat.st_size
+                
+                # 解析创建时间（从文件名中提取）
+                filename = file_path.name
+                try:
+                    # 文件名格式：campus_asset_backup_YYYYMMDD_HHMMSS.db
+                    timestamp_str = filename.split("campus_asset_backup_")[1].replace(".db", "")
+                    create_time = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
+                except:
+                    create_time = datetime.fromtimestamp(stat.st_ctime).strftime("%Y-%m-%d %H:%M:%S")
+                
+                backups.append(BackupFileResponse(
+                    filename=filename,
+                    create_time=create_time,
+                    size=file_size,
+                    size_human=self._format_file_size(file_size)
+                ))
+            
+            return BackupListResponse(backups=backups, total=len(backups))
+        except Exception as e:
+            raise ValueError(f"获取备份列表失败: {str(e)}")
+    
+    def delete_backup(self, filename: str) -> bool:
+        """
+        删除备份文件
+        
+        Args:
+            filename (str): 备份文件名
+        
+        Returns:
+            bool: 删除是否成功
+        
+        Raises:
+            ValueError: 删除失败
+        """
+        try:
+            backup_path = self.BACKUP_DIR / filename
+            
+            # 检查文件是否存在
+            if not backup_path.exists():
+                raise ValueError(f"备份文件 {filename} 不存在")
+            
+            # 检查文件是否是备份文件
+            if not filename.startswith("campus_asset_backup_") or not filename.endswith(".db"):
+                raise ValueError("只能删除备份文件")
+            
+            # 删除文件
+            os.remove(backup_path)
+            
+            return True
+        except Exception as e:
+            raise ValueError(f"删除备份文件失败: {str(e)}")
+    
+    def download_backup(self, filename: str) -> str:
+        """
+        获取备份文件路径用于下载
+        
+        Args:
+            filename (str): 备份文件名
+        
+        Returns:
+            str: 备份文件的绝对路径
+        
+        Raises:
+            ValueError: 文件不存在
+        """
+        backup_path = self.BACKUP_DIR / filename
+        
+        # 检查文件是否存在
+        if not backup_path.exists():
+            raise ValueError(f"备份文件 {filename} 不存在")
+        
+        return str(backup_path.resolve())
+    
+    def restore_database(
+        self,
+        restore_data: RestoreRequest,
+        current_password_hash: str
+    ) -> RestoreResponse:
+        """
+        从备份文件恢复数据
+        
+        恢复前会自动创建当前数据库的备份
+        
+        Args:
+            restore_data (RestoreRequest): 恢复请求数据
+            current_password_hash (str): 当前用户的密码哈希
+        
+        Returns:
+            RestoreResponse: 恢复操作结果
+        
+        Raises:
+            ValueError: 恢复失败或密码错误
+        """
+        try:
+            # 验证管理员密码
+            if not verify_password(restore_data.password, current_password_hash):
+                raise ValueError("密码错误，恢复操作被拒绝")
+             
+            # 检查备份文件是否存在
+            backup_path = self.BACKUP_DIR / restore_data.filename
+            if not backup_path.exists():
+                raise ValueError(f"备份文件 {restore_data.filename} 不存在")
+             
+            # 检查文件是否是备份文件
+            if not restore_data.filename.startswith("campus_asset_backup_") or not restore_data.filename.endswith(".db"):
+                raise ValueError("只能使用备份文件进行恢复")
+             
+            # 使用SQLite的在线恢复功能
+            # 连接到当前数据库
+            current_conn = sqlite3.connect(self.DB_FILE)
+            
+            # 连接到备份数据库
+            backup_conn = sqlite3.connect(str(backup_path))
+            
+            try:
+                # 使用备份恢复当前数据库（在线恢复）
+                backup_conn.backup(current_conn)
+            finally:
+                current_conn.close()
+                backup_conn.close()
+             
+            restore_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+             
+            return RestoreResponse(
+                success=True,
+                message="数据恢复成功",
+                restore_time=restore_time,
+                backup_filename=restore_data.filename,
+                pre_backup_filename=None
+            )
+        except ValueError as e:
+            raise
+        except Exception as e:
+            raise ValueError(f"数据恢复失败: {str(e)}")
+
+
 # 创建服务实例
 operation_log_service = OperationLogService()
 config_service = ConfigService()
+backup_restore_service = BackupRestoreService()

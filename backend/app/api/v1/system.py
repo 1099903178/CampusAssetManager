@@ -18,7 +18,8 @@ CampusAssetManager/backend/app/api/v1/system.py
 日期：2026-01-10
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, File, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -31,11 +32,16 @@ from ...schemas.system import (
     ConfigUpdate,
     ConfigBatchUpdate,
     SystemConfigResponse,
-    SystemResetRequest
+    SystemResetRequest,
+    BackupListResponse,
+    BackupCreateResponse,
+    RestoreResponse,
+    RestoreRequest
 )
 from ...services.system_service import (
     operation_log_service,
-    config_service
+    config_service,
+    backup_restore_service
 )
 from .auth import get_current_user
 from ...schemas.user import UserResponse
@@ -385,4 +391,317 @@ def initialize_system_config(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"初始化系统配置失败: {str(e)}"
+        )
+
+
+# ==================== 数据备份恢复管理 ====================
+
+@router.post("/backup", summary="创建数据库备份")
+def create_backup(
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    创建数据库备份接口
+    
+    生成数据库备份文件，文件格式为：campus_asset_backup_YYYYMMDD_HHMMSS.db
+    备份文件存储在backend/backups/目录
+    
+    权限要求：
+    - 仅超级管理员可执行
+    
+    Args:
+        current_user (UserResponse): 当前登录用户（自动注入）
+    
+    Returns:
+        dict: 统一格式的响应 {code, message, data}
+    
+    Raises:
+        HTTPException: 权限不足或备份失败时返回
+    
+    Examples:
+        POST /v1/system/backup
+    """
+    try:
+        # 权限验证：仅超级管理员可创建备份
+        if current_user.role != "super_admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="权限不足，仅超级管理员可创建备份"
+            )
+        
+        # 调用服务层创建备份
+        result = backup_restore_service.create_backup()
+        
+        # 返回成功响应
+        return {
+            "code": 200,
+            "message": "备份创建成功",
+            "data": {
+                "filename": result.filename,
+                "create_time": result.create_time,
+                "size": result.size,
+                "size_human": result.size_human
+            }
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"创建备份失败: {str(e)}"
+        )
+
+
+@router.get("/backups", summary="获取备份文件列表")
+def get_backup_list(
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    获取备份文件列表接口
+    
+    返回所有备份文件信息，包括文件名、创建时间、文件大小
+    按创建时间倒序排列
+    
+    权限要求：
+    - 仅超级管理员可查看
+    
+    Args:
+        current_user (UserResponse): 当前登录用户（自动注入）
+    
+    Returns:
+        dict: 统一格式的响应 {code, message, data}
+    
+    Raises:
+        HTTPException: 权限不足或查询失败时返回
+    
+    Examples:
+        GET /v1/system/backups
+    """
+    try:
+        # 权限验证：仅超级管理员可查看备份列表
+        if current_user.role != "super_admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="权限不足，仅超级管理员可查看备份列表"
+            )
+        
+        # 调用服务层获取备份列表
+        result = backup_restore_service.get_backup_list()
+        
+        # 返回成功响应
+        return {
+            "code": 200,
+            "message": "查询成功",
+            "data": {
+                "backups": [
+                    {
+                        "filename": backup.filename,
+                        "create_time": backup.create_time,
+                        "size": backup.size,
+                        "size_human": backup.size_human
+                    }
+                    for backup in result.backups
+                ],
+                "total": result.total
+            }
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取备份列表失败: {str(e)}"
+        )
+
+
+@router.get("/backup/{filename}", summary="下载备份文件")
+def download_backup(
+    filename: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    下载备份文件接口
+    
+    通过文件名下载对应的备份文件
+    
+    权限要求：
+    - 仅超级管理员可下载
+    
+    Args:
+        filename (str): 备份文件名
+        current_user (UserResponse): 当前登录用户（自动注入）
+    
+    Returns:
+        FileResponse: 备份文件
+    
+    Raises:
+        HTTPException: 权限不足或文件不存在时返回
+    
+    Examples:
+        GET /v1/system/backup/campus_asset_backup_20240114_143000.db
+    """
+    try:
+        # 权限验证：仅超级管理员可下载备份
+        if current_user.role != "super_admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="权限不足，仅超级管理员可下载备份"
+            )
+        
+        # 调用服务层获取备份文件路径
+        file_path = backup_restore_service.download_backup(filename)
+        
+        # 返回文件下载响应
+        return FileResponse(
+            path=file_path,
+            filename=filename,
+            media_type="application/x-sqlite3"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"下载备份文件失败: {str(e)}"
+        )
+
+
+@router.delete("/backup/{filename}", summary="删除备份文件")
+def delete_backup(
+    filename: str,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    删除备份文件接口
+    
+    通过文件名删除对应的备份文件
+    
+    权限要求：
+    - 仅超级管理员可删除
+    
+    Args:
+        filename (str): 备份文件名
+        current_user (UserResponse): 当前登录用户（自动注入）
+        db (Session): 数据库会话（自动注入）
+    
+    Returns:
+        dict: 统一格式的响应 {code, message, data}
+    
+    Raises:
+        HTTPException: 权限不足或删除失败时返回
+    
+    Examples:
+        DELETE /v1/system/backup/campus_asset_backup_20240114_143000.db
+    """
+    try:
+        # 权限验证：仅超级管理员可删除备份
+        if current_user.role != "super_admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="权限不足，仅超级管理员可删除备份"
+            )
+        
+        # 调用服务层删除备份
+        backup_restore_service.delete_backup(filename)
+        
+        # 返回成功响应
+        return {
+            "code": 200,
+            "message": "删除成功",
+            "data": {}
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"删除备份文件失败: {str(e)}"
+        )
+
+
+@router.post("/restore", summary="从备份文件恢复数据")
+def restore_database(
+    restore_data: RestoreRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    从备份文件恢复数据接口
+    
+    从指定的备份文件恢复数据库数据
+    恢复前会自动创建当前数据库的备份
+    
+    权限要求：
+    - 仅超级管理员可执行
+    
+    Args:
+        restore_data (RestoreRequest): 恢复请求数据
+        current_user (UserResponse): 当前登录用户（自动注入）
+        db (Session): 数据库会话（自动注入）
+    
+    Returns:
+        dict: 统一格式的响应 {code, message, data}
+    
+    Raises:
+        HTTPException: 权限不足或恢复失败时返回
+    
+    Examples:
+        POST /v1/system/restore
+        {
+            "filename": "campus_asset_backup_20240114_143000.db",
+            "password": "admin123"
+        }
+    """
+    try:
+        # 权限验证：仅超级管理员可恢复数据
+        if current_user.role != "super_admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="权限不足，仅超级管理员可恢复数据"
+            )
+        
+        # 获取当前用户的密码哈希
+        from ...models.sys_user import User
+        user = db.query(User).filter(
+            User.username == current_user.username
+        ).first()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="用户不存在"
+            )
+        
+        # 调用服务层恢复数据
+        result = backup_restore_service.restore_database(restore_data, user.password_hash)
+        
+        # 返回成功响应
+        return {
+            "code": 200,
+            "message": "数据恢复成功",
+            "data": {
+                "success": result.success,
+                "message": result.message,
+                "restore_time": result.restore_time,
+                "backup_filename": result.backup_filename,
+                "pre_backup_filename": result.pre_backup_filename
+            }
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"数据恢复失败: {str(e)}"
         )

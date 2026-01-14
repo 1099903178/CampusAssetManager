@@ -266,3 +266,62 @@ PREDEFINED_CONFIGS = [
         "is_public": 0
     },
 ]
+
+
+# ==================== 数据备份恢复相关模型 ====================
+
+class BackupFileResponse(BaseModel):
+    """
+    备份文件响应模型
+    
+    用于返回备份文件信息
+    """
+    filename: str = Field(..., description="文件名", examples=["campus_asset_backup_20240114_143000.db"])
+    create_time: str = Field(..., description="创建时间", examples=["2024-01-14 14:30:00"])
+    size: int = Field(..., description="文件大小（字节）", examples=[1024000])
+    size_human: str = Field(..., description="人类可读的文件大小", examples=["1.00 MB"])
+
+
+class BackupListResponse(BaseModel):
+    """
+    备份文件列表响应模型
+    
+    用于返回备份文件列表
+    """
+    backups: List[BackupFileResponse] = Field(..., description="备份文件列表")
+    total: int = Field(..., description="总数量", examples=[10])
+
+
+class BackupCreateResponse(BaseModel):
+    """
+    创建备份响应模型
+    
+    用于返回备份操作结果
+    """
+    filename: str = Field(..., description="备份文件名")
+    create_time: str = Field(..., description="创建时间")
+    size: int = Field(..., description="文件大小（字节）")
+    size_human: str = Field(..., description="人类可读的文件大小")
+
+
+class RestoreResponse(BaseModel):
+    """
+    数据恢复响应模型
+    
+    用于返回数据恢复操作结果
+    """
+    success: bool = Field(..., description="恢复是否成功")
+    message: str = Field(..., description="恢复结果消息")
+    restore_time: str = Field(..., description="恢复时间")
+    backup_filename: Optional[str] = Field(default=None, description="备份文件名")
+    pre_backup_filename: Optional[str] = Field(default=None, description="恢复前自动备份的文件名")
+
+
+class RestoreRequest(BaseModel):
+    """
+    数据恢复请求模型
+    
+    用于验证数据恢复请求参数
+    """
+    filename: str = Field(..., description="要恢复的备份文件名", examples=["campus_asset_backup_20240114_143000.db"])
+    password: str = Field(..., min_length=1, description="管理员密码")

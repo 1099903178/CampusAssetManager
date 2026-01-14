@@ -68,6 +68,11 @@
             <template #title>操作日志</template>
           </el-menu-item>
           
+          <el-menu-item index="/database">
+            <el-icon><FolderOpened /></el-icon>
+            <template #title>数据备份</template>
+          </el-menu-item>
+          
           <el-menu-item index="/settings">
             <el-icon><Setting /></el-icon>
             <template #title>系统设置</template>
@@ -132,7 +137,7 @@ import { useUserStore } from '@/stores'
 import {
   Fold, Expand, UserFilled, User, Setting, SwitchButton,
   Odometer, Goods, Box, DocumentChecked, DataLine, CaretBottom,
-  Document, Clock
+  Document, Clock, FolderOpened
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
