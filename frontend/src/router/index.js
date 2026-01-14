@@ -89,6 +89,12 @@ const routes = [
         name: 'Settings',
         component: () => import('@/views/SettingsView.vue'),
         meta: { title: '系统设置', requiresAuth: true }
+      },
+      {
+        path: 'database',
+        name: 'Database',
+        component: () => import('@/views/DatabaseView.vue'),
+        meta: { title: '数据库管理', requiresAuth: true }
       }
     ]
   }

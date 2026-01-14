@@ -161,8 +161,16 @@ const handleLogin = async () => {
     
     ElMessage.success('登录成功')
     
+    // 获取重定向路径
     const redirect = route.query.redirect || '/'
-    router.push(redirect)
+    
+    // 如果重定向路径是/database、/home或根路径/，则跳转到首页/home
+    // 这样可以避免数据恢复后又回到database页
+    if (redirect === '/database' || redirect === '/home' || redirect === '/') {
+      router.push('/home')
+    } else {
+      router.push(redirect)
+    }
   } catch (error) {
     console.error('登录失败:', error)
     ElMessage.error(error.message || '登录失败')

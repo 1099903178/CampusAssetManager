@@ -62,3 +62,51 @@ export const getOperationLogs = (params) => {
 export const resetSystem = (data) => {
   return http.post('/v1/system/reset', data)
 }
+
+/**
+ * 创建数据库备份
+ *
+ * @returns {Promise} 返回Promise对象
+ */
+export const createBackup = () => {
+  return http.post('/v1/system/backup')
+}
+
+/**
+ * 获取备份文件列表
+ *
+ * @returns {Promise} 返回Promise对象
+ */
+export const getBackupList = () => {
+  return http.get('/v1/system/backups')
+}
+
+/**
+ * 下载备份文件
+ *
+ * @param {string} filename - 备份文件名
+ * @returns {Promise} 返回Promise对象
+ */
+export const downloadBackup = (filename) => {
+  return http.get(`/v1/system/backup/${filename}`, { responseType: 'blob' })
+}
+
+/**
+ * 删除备份文件
+ *
+ * @param {string} filename - 备份文件名
+ * @returns {Promise} 返回Promise对象
+ */
+export const deleteBackup = (filename) => {
+  return http.delete(`/v1/system/backup/${filename}`)
+}
+
+/**
+ * 从备份文件恢复数据
+ *
+ * @param {Object} data - 恢复数据 { filename, password }
+ * @returns {Promise} 返回Promise对象
+ */
+export const restoreDatabase = (data) => {
+  return http.post('/v1/system/restore', data)
+}
