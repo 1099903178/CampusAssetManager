@@ -1,85 +1,94 @@
 /**
  * CampusAssetManager/frontend/src/views/GoodsView.vue
  * 物品管理页面
- * 
+ *
  * 功能说明：
  * - 物品列表展示（支持分页、搜索）
  * - 物品搜索和筛选
  * - 物品增删改查（CRUD）
  * - 物品批量导入导出
- * 
+ *
  * 设计原则：
  * - 声明式：使用Vue Composition API
  * - 组件化：使用Element Plus组件
  * - 响应式：使用ref和reactive管理状态
- * 
+ *
  * 作者：CampusAssetManager开发团队
  * 日期：2026-01-06
  */
 
+/* Template 区域已应用新设计风格，Script 业务逻辑保持不变 */
+
 <template>
-  <div class="goods-container">
-    <!-- 工具栏 -->
-    <el-card class="toolbar-card">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-input
-            v-model="searchForm.search"
-            placeholder="搜索物品名称、编码"
-            clearable
-            @clear="handleSearch"
-            @keyup.enter="handleSearch"
-          >
-            <template #append>
-              <el-button @click="handleSearch">搜索</el-button>
-            </template>
-          </el-input>
-        </el-col>
-        <el-col :span="4">
-          <el-select
-            v-model="searchForm.category_id"
-            placeholder="分类"
-            clearable
-            @change="handleSearch"
-          >
-            <el-option
-              v-for="category in categories"
-              :key="category.category_id"
-              :label="category.category_name"
-              :value="category.category_id"
-            />
-          </el-select>
-        </el-col>
-        <el-col :span="4">
-          <el-select
-            v-model="searchForm.status"
-            placeholder="状态"
-            clearable
-            @change="handleSearch"
-          >
-            <el-option label="正常" :value="1" />
-            <el-option label="报废" :value="2" />
-            <el-option label="维修中" :value="3" />
-          </el-select>
-        </el-col>
-        <el-col :span="6">
-          <el-button @click="handleReset">重置</el-button>
-        </el-col>
-        <el-col :span="6" style="text-align: right;">
-          <el-button v-if="canManage" type="primary" @click="handleAdd">新增物品</el-button>
-          
-          <!-- 导入导出按钮组 -->
-          <el-button-group v-if="canManage">
-            <el-button @click="handleDownloadTemplate">下载模板</el-button>
-            <el-button @click="handleImport">批量导入</el-button>
-            <el-button @click="handleExport">导出列表</el-button>
-          </el-button-group>
-        </el-col>
-      </el-row>
-    </el-card>
-    
-    <!-- 物品列表 -->
-    <el-card class="table-card">
+  <div class="page-container">
+    <div class="glass-toolbar">
+      <div class="toolbar-left">
+        <el-input
+          v-model="searchForm.search"
+          placeholder="搜索物品名称 / 编码..."
+          :prefix-icon="Search"
+          clearable
+          class="search-input"
+          @clear="handleSearch"
+          @keyup.enter="handleSearch"
+        />
+        
+        <el-select
+          v-model="searchForm.category_id"
+          placeholder="全部分类"
+          clearable
+          class="filter-select"
+          @change="handleSearch"
+        >
+          <el-option
+            v-for="category in categories"
+            :key="category.category_id"
+            :label="category.category_name"
+            :value="category.category_id"
+          />
+        </el-select>
+
+        <el-select
+          v-model="searchForm.status"
+          placeholder="资产状态"
+          clearable
+          class="filter-select"
+          @change="handleSearch"
+        >
+          <el-option label="正常" :value="1" />
+          <el-option label="报废" :value="2" />
+          <el-option label="维修中" :value="3" />
+        </el-select>
+      </div>
+
+      <div class="toolbar-right">
+        <el-button @click="handleReset">重置</el-button>
+        
+        <el-button-group class="action-group" v-if="canManage">
+           <el-tooltip content="下载模板" placement="top">
+             <el-button :icon="Download" @click="handleDownloadTemplate" />
+           </el-tooltip>
+           <el-tooltip content="批量导入" placement="top">
+             <el-button :icon="Upload" @click="handleImport" />
+           </el-tooltip>
+           <el-tooltip content="导出列表" placement="top">
+             <el-button :icon="Share" @click="handleExport" />
+           </el-tooltip>
+        </el-button-group>
+        
+        <el-button
+          v-if="canManage"
+          type="primary"
+          :icon="Plus"
+          class="create-btn"
+          @click="handleAdd"
+        >
+          新建资产
+        </el-button>
+      </div>
+    </div>
+
+    <div class="content-card">
       <TableComponent
         :key="tableKey"
         :data="goodsList"
@@ -92,44 +101,73 @@
         @update:limit="handleSizeChange"
       >
         <template #columns>
-          <el-table-column prop="goods_id" label="ID" width="80" align="center" />
-          <el-table-column prop="goods_name" label="物品名称" min-width="150" />
-          <el-table-column prop="goods_code" label="物品编码" width="120" />
+          <el-table-column prop="goods_id" label="ID" width="50" align="center" fixed="left">
+            <template #default="{ row }">
+              <span class="num-font secondary-num">{{ row.goods_id }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="goods_name" label="物品名称" min-width="150">
+            <template #default="{ row }">
+              <span class="text-main fw-600">{{ row.goods_name }}</span>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="goods_code" label="物品编码" width="110">
+            <template #default="{ row }">
+              <span class="num-font code-text">{{ row.goods_code }}</span>
+            </template>
+          </el-table-column>
+
           <el-table-column prop="category_name" label="分类" width="120" />
-          <el-table-column prop="specification" label="规格" width="150" />
+
+          <el-table-column prop="specification" label="规格" width="150" show-overflow-tooltip />
+
           <el-table-column prop="unit" label="单位" width="80" align="center" />
-          <el-table-column prop="purchase_price" label="采购价" width="100" align="right">
+
+          <el-table-column prop="purchase_price" label="采购价" width="110" align="right">
             <template #default="{ row }">
-              ¥{{ row.purchase_price.toFixed(2) }}
+              <span class="num-font price-text">
+                {{ row.purchase_price ? row.purchase_price.toFixed(2) : '0.00' }}
+              </span>
             </template>
           </el-table-column>
-          <el-table-column prop="retail_price" label="零售价" width="100" align="right">
+
+          <el-table-column prop="retail_price" label="零售价" width="110" align="right">
             <template #default="{ row }">
-              {{ row.retail_price ? `¥${row.retail_price.toFixed(2)}` : '-' }}
+              <span class="num-font price-text" v-if="row.retail_price">
+                {{ row.retail_price.toFixed(2) }}
+              </span>
+              <span v-else class="secondary-num">-</span>
             </template>
           </el-table-column>
-          <el-table-column prop="status" label="状态" width="100" align="center">
+
+          <el-table-column prop="status" label="状态" width="110" align="center">
             <template #default="{ row }">
-              <el-tag v-if="row.status === 1" type="success">正常</el-tag>
-              <el-tag v-else-if="row.status === 2" type="danger">报废</el-tag>
-              <el-tag v-else type="warning">维修中</el-tag>
+              <div class="status-pill" :class="getStatusClass(row.status)">
+                <span class="dot"></span>
+                <span>{{ getStatusLabel(row.status) }}</span>
+              </div>
             </template>
           </el-table-column>
-          <el-table-column v-if="canManage" label="操作" width="200" align="center" fixed="right">
+
+          <el-table-column v-if="canManage" label="操作" width="160" align="center" fixed="right">
             <template #default="{ row }">
-              <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
+              <el-button link class="edit-btn" @click="handleEdit(row)">编辑</el-button>
+              <el-divider direction="vertical" />
               <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
             </template>
           </el-table-column>
         </template>
       </TableComponent>
-    </el-card>
+    </div>
     
     <!-- 新增/编辑对话框 -->
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
       width="600px"
+      class="custom-dialog"
       @close="handleDialogClose"
     >
       <el-form
@@ -137,79 +175,91 @@
         :model="formData"
         :rules="formRules"
         label-width="100px"
+        class="modern-form"
       >
         <el-form-item label="物品名称" prop="goods_name">
-          <el-input v-model="formData.goods_name" placeholder="请输入物品名称" />
+          <el-input v-model="formData.goods_name" placeholder="请输入物品全称" />
         </el-form-item>
         
-        <el-form-item label="物品编码" prop="goods_code">
-          <el-input v-model="formData.goods_code" placeholder="请输入物品编码" />
-        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="物品编码" prop="goods_code">
+              <el-input v-model="formData.goods_code" placeholder="留空则自动生成" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="所属分类" prop="category_id">
+              <el-select v-model="formData.category_id" placeholder="请选择" style="width: 100%">
+                <el-option
+                  v-for="c in categories"
+                  :key="c.category_id"
+                  :label="c.category_name"
+                  :value="c.category_id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
         
-        <el-form-item label="分类" prop="category_id">
-          <el-select
-            v-model="formData.category_id"
-            placeholder="请选择分类"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="category in categories"
-              :key="category.category_id"
-              :label="category.category_name"
-              :value="category.category_id"
-            />
-          </el-select>
-        </el-form-item>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="规格型号" prop="specification">
+              <el-input v-model="formData.specification" placeholder="如：16G/512G" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="计量单位" prop="unit">
+              <el-input v-model="formData.unit" placeholder="如：个、台、箱" />
+            </el-form-item>
+          </el-col>
+        </el-row>
         
-        <el-form-item label="规格型号" prop="specification">
-          <el-input v-model="formData.specification" placeholder="请输入规格型号" />
-        </el-form-item>
-        
-        <el-form-item label="计量单位" prop="unit">
-          <el-input v-model="formData.unit" placeholder="如：个、台、箱等" />
-        </el-form-item>
-        
-        <el-form-item label="采购单价" prop="purchase_price">
-          <el-input-number
-            v-model="formData.purchase_price"
-            :precision="2"
-            :min="0"
-            :step="0.01"
-            style="width: 100%"
-          />
-        </el-form-item>
-        
-        <el-form-item label="零售单价" prop="retail_price">
-          <el-input-number
-            v-model="formData.retail_price"
-            :precision="2"
-            :min="0"
-            :step="0.01"
-            style="width: 100%"
-          />
-        </el-form-item>
-        
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="采购单价" prop="purchase_price">
+              <el-input-number
+                v-model="formData.purchase_price"
+                :precision="2"
+                :step="0.01"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="零售单价" prop="retail_price">
+              <el-input-number
+                v-model="formData.retail_price"
+                :precision="2"
+                :min="0"
+                :step="0.01"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
         <el-form-item label="物品描述" prop="description">
           <el-input
             v-model="formData.description"
             type="textarea"
-            :rows="3"
-            placeholder="请输入物品描述"
+            rows="3"
           />
         </el-form-item>
-        
-        <el-form-item label="状态" prop="status">
+
+        <el-form-item label="资产状态" prop="status">
           <el-radio-group v-model="formData.status">
-            <el-radio :value="1">正常</el-radio>
-            <el-radio :value="2">报废</el-radio>
-            <el-radio :value="3">维修中</el-radio>
+            <el-radio-button :value="1">正常</el-radio-button>
+            <el-radio-button :value="2">报废</el-radio-button>
+            <el-radio-button :value="3">维修中</el-radio-button>
           </el-radio-group>
         </el-form-item>
       </el-form>
       
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSave" :loading="submitLoading">保存</el-button>
+        <div class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleSave" :loading="submitLoading">保存信息</el-button>
+        </div>
       </template>
     </el-dialog>
     
@@ -218,6 +268,7 @@
       v-model="importDialogVisible"
       title="批量导入物品"
       width="500px"
+      class="custom-dialog"
       @close="handleImportDialogClose"
     >
       <el-upload
@@ -251,6 +302,7 @@
       v-model="importResultDialogVisible"
       title="导入结果"
       width="600px"
+      class="custom-dialog"
     >
       <el-result
         :icon="importResult.success_count > 0 ? 'success' : 'error'"
@@ -281,7 +333,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { UploadFilled } from '@element-plus/icons-vue'
+import { Search, Plus, Download, Upload, Share, UploadFilled } from '@element-plus/icons-vue'
 import TableComponent from '@/components/common/TableComponent.vue'
 import {
   getGoodsList,
@@ -483,6 +535,46 @@ const loadCategories = async () => {
   } catch (error) {
     ElMessage.error('加载分类列表失败')
   }
+}
+
+/**
+ * 获取资产状态标签文本
+ *
+ * 根据状态码返回对应的中文标签
+ *
+ * @param {number} status - 状态码
+ *   - 1: 正常
+ *   - 2: 报废
+ *   - 3: 维修中
+ * @returns {string} 状态文本
+ */
+const getStatusLabel = (status) => {
+  const statusMap = {
+    1: '正常',
+    2: '报废',
+    3: '维修中'
+  }
+  return statusMap[status] || '未知'
+}
+
+/**
+ * 获取资产状态样式类
+ *
+ * 根据状态码返回对应的 CSS 类名，用于设置颜色样式
+ *
+ * @param {number} status - 状态码
+ * @returns {string} CSS 类名
+ *   - 1: 's-active'（绿色）
+ *   - 2: 's-danger'（红色）
+ *   - 3: 's-warning'（橙色）
+ */
+const getStatusClass = (status) => {
+  const classMap = {
+    1: 's-active',
+    2: 's-danger',
+    3: 's-warning'
+  }
+  return classMap[status] || ''
 }
 
 /**
@@ -833,15 +925,114 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.goods-container {
-  padding: 20px;
+.page-container {
+  max-width: 1500px;
+  margin: 0 auto;
+  animation: fadeIn 0.4s ease-out;
 }
 
-.toolbar-card {
-  margin-bottom: 20px;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.table-card {
-  margin-bottom: 20px;
+/* 1. 悬浮工具栏 */
+.glass-toolbar {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(241, 245, 249, 0.8);
+  padding: 16px 24px;
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.toolbar-left { display: flex; gap: 12px; }
+.search-input { width: 260px; }
+.filter-select { width: 140px; }
+
+.toolbar-right { display: flex; gap: 12px; align-items: center; }
+
+/* 2. 内容卡片 */
+.content-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  min-height: 650px;
+}
+
+/* 3. 字体与细节优化 */
+.num-font {
+  font-family: 'Oswald', sans-serif !important;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+}
+
+.secondary-num { color: #94a3b8; font-size: 13px; }
+.code-text { color: #64748b; font-size: 14px; background: #f8fafc; padding: 2px 6px; border-radius: 4px; }
+.price-text { color: #2563eb; font-size: 16px; font-weight: 600; }
+.price-text::before { content: '¥'; font-size: 12px; margin-right: 2px; font-family: sans-serif; }
+
+.fw-600 { font-weight: 600; }
+.text-main { color: #1e293b; }
+
+/* 4. 状态标签设计 */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.s-active { background: #f0fdf4; color: #16a34a; }
+.s-active .dot { background: #10b981; box-shadow: 0 0 6px #10b981; }
+
+.s-danger { background: #fef2f2; color: #dc2626; }
+.s-danger .dot { background: #ef4444; }
+
+.s-warning { background: #fffbeb; color: #d97706; }
+.s-warning .dot { background: #f59e0b; }
+
+/* 按钮样式调整 */
+.action-group .el-button {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.action-group .el-button:hover {
+  color: #2563eb;
+  background: white;
+}
+
+.edit-btn {
+  color: #3b82f6 !important;
+  font-weight: 500;
+}
+.edit-btn:hover {
+  color: #2563eb !important;
+}
+
+.create-btn {
+  padding: 10px 24px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px -2px rgba(37, 99, 235, 0.3);
+}
+
+/* 响应式适配 */
+@media (max-width: 992px) {
+  .glass-toolbar { flex-direction: column; gap: 16px; align-items: stretch; }
+  .toolbar-left { flex-direction: column; }
+  .toolbar-right { width: 100%; justify-content: flex-start; }
+  .search-input, .filter-select { width: 100%; }
 }
 </style>

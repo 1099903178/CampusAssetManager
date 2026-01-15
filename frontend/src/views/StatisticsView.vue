@@ -15,29 +15,85 @@
 
 <template>
   <div class="statistics-view">
-    <div class="summary-section">
-      <div class="summary-item">
-        <div class="label">物品总数</div>
-        <div class="value">{{ summary.total_goods }}</div>
-      </div>
-      <div class="summary-item">
-        <div class="label">正常物品</div>
-        <div class="value text-success">{{ summary.total_goods_normal }}</div>
-      </div>
-      <div class="summary-item">
-        <div class="label">库存总量</div>
-        <div class="value">{{ summary.total_stock }}</div>
-      </div>
-      <div class="summary-item">
-        <div class="label">今日入库</div>
-        <div class="value text-success">+{{ summary.today_stock_in }}</div>
-      </div>
-      <div class="summary-item">
-        <div class="label">今日出库</div>
-        <div class="value text-warning">-{{ summary.today_stock_out }}</div>
-      </div>
-    </div>
+    <!-- 概览卡片区域 -->
+      <el-row :gutter="12" style="margin-bottom: 24px;">
+        <el-col :xs="24" :sm="12" :lg="4">
+        <div class="metric-card m-blue">
+          <div class="metric-icon">
+            <el-icon><Box /></el-icon>
+          </div>
+          <div class="metric-body">
+            <span class="metric-label">物品总数</span>
+            <div class="metric-value num-font">{{ summary.total_goods }}</div>
+          </div>
+          <div class="metric-bg-icon">
+            <el-icon><Box /></el-icon>
+          </div>
+        </div>
+      </el-col>
+      
+      <el-col :xs="24" :sm="12" :lg="5">
+        <div class="metric-card m-green">
+          <div class="metric-icon">
+            <el-icon><House /></el-icon>
+          </div>
+          <div class="metric-body">
+            <span class="metric-label">正常物品</span>
+            <div class="metric-value num-font text-success">{{ summary.total_goods_normal }}</div>
+          </div>
+          <div class="metric-bg-icon">
+            <el-icon><House /></el-icon>
+          </div>
+        </div>
+      </el-col>
+      
+      <el-col :xs="24" :sm="12" :lg="5">
+        <div class="metric-card m-purple">
+          <div class="metric-icon">
+            <el-icon><ShoppingCart /></el-icon>
+          </div>
+          <div class="metric-body">
+            <span class="metric-label">库存总量</span>
+            <div class="metric-value num-font">{{ summary.total_stock }}</div>
+          </div>
+          <div class="metric-bg-icon">
+            <el-icon><ShoppingCart /></el-icon>
+          </div>
+        </div>
+      </el-col>
+      
+      <el-col :xs="24" :sm="12" :lg="5">
+        <div class="metric-card m-teal">
+          <div class="metric-icon">
+            <el-icon><CirclePlus /></el-icon>
+          </div>
+          <div class="metric-body">
+            <span class="metric-label">今日入库</span>
+            <div class="metric-value num-font text-teal-value">+{{ summary.today_stock_in }}</div>
+          </div>
+          <div class="metric-bg-icon">
+            <el-icon><CirclePlus /></el-icon>
+          </div>
+        </div>
+      </el-col>
+      
+      <el-col :xs="24" :sm="12" :lg="5">
+        <div class="metric-card m-orange">
+          <div class="metric-icon">
+            <el-icon><ArrowUp /></el-icon>
+          </div>
+          <div class="metric-body">
+            <span class="metric-label">今日出库</span>
+            <div class="metric-value num-font text-warning">-{{ summary.today_stock_out }}</div>
+          </div>
+          <div class="metric-bg-icon">
+            <el-icon><ArrowUp /></el-icon>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
     
+    <!-- 库存趋势图表 -->
     <div class="chart-panel full-width">
       <div class="panel-header">
         <div class="title-box">
@@ -80,6 +136,7 @@
       <div ref="trendChartRef" class="chart-container main-chart"></div>
     </div>
     
+    <!-- 物品排行榜和分类占比 -->
     <el-row :gutter="24" style="margin-top: 24px;">
       <el-col :span="12">
         <div class="chart-panel">
@@ -112,6 +169,7 @@
       </el-col>
     </el-row>
     
+    <!-- 库存预警 -->
     <div class="chart-panel full-width" style="margin-top: 24px;" v-if="summary.warning_count > 0">
       <div class="panel-header warning-header">
         <div class="title-box">
@@ -128,6 +186,9 @@
 import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
+import {
+  Box, House, ShoppingCart, ArrowDown, ArrowUp, CirclePlus
+} from '@element-plus/icons-vue'
 import { getDataOverview, getStockTrend, getGoodsRanking, getCategoryStats, getStockAlert } from '@/api/statistics'
 import { getGoodsList } from '@/api/goods'
 
@@ -351,7 +412,9 @@ const loadCategoryStats = async () => {
     const response = await getCategoryStats({ stats_type: categoryStatsType.value })
     categoryData.value = response.category_stats || []
     renderCategoryChart(response)
-  } catch (error) { ElMessage.error('加载分类统计失败') }
+  } catch (error) {
+    ElMessage.error('加载分类统计失败')
+  }
 }
 
 const renderCategoryChart = (data) => {
@@ -384,7 +447,9 @@ const loadGoodsList = async () => {
   try {
     const response = await getGoodsList({ page: 1, page_size: 20 })
     goodsList.value = response.items || []
-  } catch (error) { ElMessage.error('加载物品列表失败') }
+  } catch (error) {
+    ElMessage.error('加载物品列表失败')
+  }
 }
 
 const formatDate = (date) => {
@@ -427,41 +492,60 @@ watch(() => summary.warning_count, () => loadAlertList())
   margin: 0 auto;
 }
 
-/* 顶部概览条 */
-.summary-section {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 24px;
-  margin-bottom: 24px;
+/* 概览卡片 */
+.metrics-grid { margin-bottom: 24px; }
+
+.metric-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #f1f5f9;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.summary-item {
-  background: #fff;
-  padding: 24px;
-  border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-  border: 1px solid #f0f0f0;
+.metric-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px -5px rgba(0,0,0,0.05);
 }
 
-.summary-item .label {
-  font-size: 14px;
-  color: #8c8c8c;
-  margin-bottom: 8px;
+.metric-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  z-index: 2;
 }
 
-.summary-item .value {
-  font-size: 32px;
-  font-weight: 600;
-  color: #1f1f1f;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
-}
+.m-blue .metric-icon { background: #eff6ff; color: #2563eb; }
+.m-green .metric-icon { background: #f0fdf4; color: #16a34a; }
+.m-purple .metric-icon { background: #faf5ff; color: #9333ea; }
+.m-teal .metric-icon { background: #ccfbf1; color: #0d9488; }
+.m-orange .metric-icon { background: #fff7ed; color: #ea580c; }
 
-.text-success { color: #52c41a !important; }
-.text-warning { color: #faad14 !important; }
+.metric-body { z-index: 2; }
+.metric-label { font-size: 13px; color: #64748b; display: block; margin-bottom: 4px; }
+.metric-value { font-size: 28px; font-weight: 700; color: #1e293b; line-height: 1; }
+
+.metric-bg-icon {
+  position: absolute;
+  right: -10px;
+  bottom: -15px;
+  font-size: 72px;
+  opacity: 0.04;
+  transform: rotate(-15deg);
+}
 
 /* 图表容器面板 */
 .chart-panel {
-  background: #fff;
+  background: white;
   border-radius: 8px;
   padding: 24px;
   border: 1px solid #f0f0f0;
@@ -477,7 +561,7 @@ watch(() => summary.warning_count, () => loadAlertList())
 .title-box h4 {
   font-size: 16px;
   font-weight: 600;
-  color: #1f1f1f;
+  color: #1e293b;
   position: relative;
   padding-left: 12px;
 }
@@ -506,7 +590,7 @@ watch(() => summary.warning_count, () => loadAlertList())
 .main-chart { height: 350px; }
 .sub-chart { height: 300px; }
 
-/* 徽标 */
+/* 预警徽标 */
 .badge {
   background: #fff1f0;
   color: #ff4d4f;
@@ -517,4 +601,7 @@ watch(() => summary.warning_count, () => loadAlertList())
   margin-left: 8px;
   vertical-align: middle;
 }
+
+/* 数字字体类 */
+.num-font { font-family: 'Oswald', sans-serif !important; letter-spacing: -0.5px; }
 </style>

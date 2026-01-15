@@ -13,54 +13,56 @@
  */
 
 <template>
-  <div class="check-container">
-    <!-- 工具栏 -->
-    <el-card class="toolbar-card">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-input
-            v-model="searchKeyword"
-            placeholder="搜索盘点单号、物品名称"
-            clearable
-            @clear="handleSearch"
-            @keyup.enter="handleSearch"
-          >
-            <template #append>
-              <el-button @click="handleSearch">搜索</el-button>
-            </template>
-          </el-input>
-        </el-col>
-        <el-col :span="4">
-          <el-select
-            v-model="checkResultFilter"
-            placeholder="盘点结果"
-            clearable
-            @change="handleSearch"
-          >
-            <el-option label="正常" value="normal" />
-            <el-option label="盘盈" value="over" />
-            <el-option label="盘亏" value="short" />
-          </el-select>
-        </el-col>
-        <el-col :span="4">
-          <el-date-picker
-            v-model="dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            value-format="YYYY-MM-DD"
-            @change="handleSearch"
-          />
-        </el-col>
-        <el-col :span="10" style="text-align: right;">
-          <el-button type="primary" @click="handleCreateCheck">创建盘点单</el-button>
-        </el-col>
-      </el-row>
-    </el-card>
+  <div class="page-container">
+    <div class="glass-toolbar">
+      <div class="toolbar-left">
+        <h2 class="page-title">盘点管理</h2>
+        
+        <!-- 筛选组件内联显示 -->
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索盘点单号、物品名称..."
+          :prefix-icon="Search"
+          clearable
+          class="search-input-inline"
+          @clear="handleSearch"
+          @keyup.enter="handleSearch"
+        />
+        
+        <el-select
+          v-model="checkResultFilter"
+          placeholder="盘点结果"
+          clearable
+          class="filter-select-inline"
+          @change="handleSearch"
+        >
+          <el-option label="正常" value="normal" />
+          <el-option label="盘盈" value="over" />
+          <el-option label="盘亏" value="short" />
+        </el-select>
+        
+        <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+          value-format="YYYY-MM-DD"
+          @change="handleSearch"
+          class="date-picker-inline"
+          size="default"
+        />
+      </div>
+      
+      <div class="toolbar-right">
+        <el-button type="primary" @click="handleCreateCheck">
+          <el-icon><Plus /></el-icon>
+          创建盘点单
+        </el-button>
+      </div>
+    </div>
     
-    <!-- 盘点记录列表 -->
-    <el-card class="table-card">
+    <div class="content-card">
       <TableComponent
         :data="checkList"
         :loading="loading"
@@ -72,47 +74,73 @@
         @update:limit="handleSizeChange"
       >
         <template #columns>
-          <el-table-column prop="check_no" label="盘点单号" min-width="150" />
-          <el-table-column prop="goods_name" label="物品名称" min-width="150" />
-          <el-table-column prop="book_stock" label="账面库存" width="100" align="center" />
-          <el-table-column prop="actual_stock" label="实际库存" width="100" align="center" />
-          <el-table-column prop="diff_quantity" label="差异" width="100" align="center">
+          <el-table-column prop="check_no" label="盘点单号" min-width="150">
             <template #default="{ row }">
-              <span :class="getDiffClass(row.diff_quantity)">
+              <span class="code-text">{{ row.check_no }}</span>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="goods_name" label="物品名称" min-width="150">
+            <template #default="{ row }">
+              <span class="text-main fw-600">{{ row.goods_name }}</span>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="book_stock" label="账面库存" width="110" align="right">
+            <template #default="{ row }">
+              <span class="num-font">{{ row.book_stock || 0 }}</span>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="actual_stock" label="实际库存" width="110" align="right">
+            <template #default="{ row }">
+              <span class="num-font">{{ row.actual_stock || 0 }}</span>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="diff_quantity" label="差异" width="110" align="right">
+            <template #default="{ row }">
+              <span class="num-font" :class="getDiffClass(row.diff_quantity)">
                 {{ row.diff_quantity > 0 ? '+' + row.diff_quantity : row.diff_quantity }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="check_result" label="盘点结果" width="100" align="center">
+          
+          <el-table-column prop="check_result" label="盘点结果" width="110" align="center">
             <template #default="{ row }">
-              <el-tag :type="getCheckResultType(row.check_result)">
-                {{ getCheckResultText(row.check_result) }}
-              </el-tag>
+              <div class="status-pill" :class="getCheckResultClass(row.check_result)">
+                <span class="dot"></span>
+                <span>{{ getCheckResultText(row.check_result) }}</span>
+              </div>
             </template>
           </el-table-column>
+          
           <el-table-column prop="checker_name" label="盘点人" width="100" />
-          <el-table-column prop="check_time" label="盘点时间" width="180">
+          
+          <el-table-column prop="check_time" label="盘点时间" width="160" align="center">
             <template #default="{ row }">
               {{ formatDate(row.check_time) }}
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="150" align="center">
+          
+          <el-table-column label="操作" width="100" align="center" fixed="right">
             <template #default="{ row }">
-              <el-button type="primary" link @click="handleDetail(row)">详情</el-button>
+              <el-button link class="edit-btn" @click="handleDetail(row)">详情</el-button>
             </template>
           </el-table-column>
         </template>
       </TableComponent>
-    </el-card>
+    </div>
     
     <!-- 创建盘点对话框 -->
     <el-dialog
       v-model="dialogVisible"
       title="创建盘点单"
       width="600px"
+      class="custom-dialog"
       @close="resetForm"
     >
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px" class="modern-form">
         <el-form-item label="选择物品" prop="goods_id">
           <el-select
             v-model="form.goods_id"
@@ -123,7 +151,7 @@
             <el-option
               v-for="item in goodsList"
               :key="item.goods_id"
-              :label="`${item.goods_code} - ${item.goods_name}`"
+              :label="`${item.goods_code} - ${item.goods_name} (库存: ${item.current_stock})`"
               :value="item.goods_id"
             />
           </el-select>
@@ -149,8 +177,10 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitForm">提交</el-button>
+        <div class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitForm">提交</el-button>
+        </div>
       </template>
     </el-dialog>
     
@@ -159,6 +189,7 @@
       v-model="detailDialogVisible"
       title="盘点详情"
       width="700px"
+      class="custom-dialog"
     >
       <el-descriptions :column="2" border>
         <el-descriptions-item label="盘点单号">{{ currentDetail.check_no }}</el-descriptions-item>
@@ -173,9 +204,10 @@
           </span>
         </el-descriptions-item>
         <el-descriptions-item label="盘点结果">
-          <el-tag :type="getCheckResultType(currentDetail.check_result)">
-            {{ getCheckResultText(currentDetail.check_result) }}
-          </el-tag>
+          <div class="status-pill" :class="getCheckResultClass(currentDetail.check_result)">
+            <span class="dot"></span>
+            <span>{{ getCheckResultText(currentDetail.check_result) }}</span>
+          </div>
         </el-descriptions-item>
         <el-descriptions-item label="盘点人">{{ currentDetail.checker_name }}</el-descriptions-item>
         <el-descriptions-item label="备注">{{ currentDetail.remark || '-' }}</el-descriptions-item>
@@ -187,6 +219,7 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Search, Plus } from '@element-plus/icons-vue'
 import TableComponent from '@/components/common/TableComponent.vue'
 import {
   getStockCheckList,
@@ -289,18 +322,18 @@ const getDiffClass = (diff) => {
 }
 
 /**
- * 获取盘点结果类型
- * 
+ * 获取盘点结果样式类
+ *
  * @param {string} result - 盘点结果
- * @returns {string} 类型
+ * @returns {string} 样式类名
  */
-const getCheckResultType = (result) => {
-  const typeMap = {
-    'normal': 'success',
-    'over': 'warning',
-    'short': 'danger'
+const getCheckResultClass = (result) => {
+  const classMap = {
+    'normal': 's-active',
+    'over': 's-warning',
+    'short': 's-danger'
   }
-  return typeMap[result] || 'info'
+  return classMap[result] || ''
 }
 
 /**
@@ -536,29 +569,161 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.check-container {
-  padding: 20px;
+.page-container {
+  max-width: 1500px;
+  margin: 0 auto;
+  animation: fadeIn 0.4s ease-out;
 }
 
-.toolbar-card {
-  margin-bottom: 20px;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.table-card {
-  height: calc(100vh - 250px);
+/* 1. 悬浮工具栏 */
+.glass-toolbar {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(241, 245, 249, 0.8);
+  padding: 12px 20px;
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.diff-positive {
-  color: #E6A23C;
-  font-weight: bold;
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+  white-space: nowrap;
 }
 
-.diff-negative {
-  color: #F56C6C;
-  font-weight: bold;
+.search-input-inline {
+  width: 260px;
+  flex-shrink: 0;
+}
+.filter-select-inline {
+  width: 120px;
+  flex-shrink: 0;
+}
+.date-picker-inline {
+  width: 260px;
+  flex-shrink: 0;
 }
 
-.diff-normal {
-  color: #67C23A;
+.toolbar-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* 2. 内容卡片 */
+.content-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  min-height: 500px;
+}
+
+/* 3. 字体与细节优化 */
+.num-font {
+  font-family: 'Oswald', sans-serif !important;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+}
+
+.code-text { color: #64748b; font-size: 13px; font-family: 'Consolas', monospace; }
+.fw-600 { font-weight: 600; }
+.text-main { color: #1e293b; }
+
+/* 4. 状态标签设计 */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.s-active { background: #f0fdf4; color: #16a34a; }
+.s-active .dot { background: #10b981; box-shadow: 0 0 6px #10b981; }
+
+.s-danger { background: #fef2f2; color: #dc2626; }
+.s-danger .dot { background: #ef4444; }
+
+.s-warning { background: #fffbeb; color: #d97706; }
+.s-warning .dot { background: #f59e0b; }
+
+/* 5. 差异数量样式 */
+.diff-positive { color: #16a34a; font-weight: 600; }
+.diff-negative { color: #dc2626; font-weight: 600; }
+.diff-normal { color: #94a3b8; }
+
+/* 6. 按钮样式调整 */
+.edit-btn {
+  color: #3b82f6 !important;
+  font-weight: 500;
+}
+.edit-btn:hover {
+  color: #2563eb !important;
+}
+
+/* 7. 对话框样式 */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* 响应式适配 */
+@media (max-width: 1200px) {
+  .glass-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .toolbar-left {
+    flex-wrap: wrap;
+  }
+  .search-input-inline,
+  .filter-select-inline,
+  .date-picker-inline {
+    width: 100%;
+    max-width: none;
+  }
+  .toolbar-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .glass-toolbar {
+    padding: 12px 16px;
+  }
+  .page-title {
+    font-size: 16px;
+  }
 }
 </style>

@@ -1,7 +1,6 @@
 # Project configuration
 /.cospec
 /.roo
-/开发prompt.md
 
 # Python
 __pycache__/

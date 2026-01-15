@@ -13,91 +13,99 @@
  */
 
 <template>
-  <div class="ledger-container">
-    <!-- 工具栏 -->
-    <el-card class="toolbar-card">
-      <el-row :gutter="20">
-        <el-col :span="6">
-          <el-input
-            v-model="searchKeyword"
-            placeholder="搜索操作单号、物品名称"
-            clearable
-            @clear="handleSearch"
-            @keyup.enter="handleSearch"
-          >
-            <template #append>
-              <el-button @click="handleSearch">搜索</el-button>
-            </template>
-          </el-input>
-        </el-col>
-        <el-col :span="4">
-          <el-select
-            v-model="operationTypeFilter"
-            placeholder="操作类型"
-            clearable
-            @change="handleSearch"
-          >
-            <el-option label="入库" value="in" />
-            <el-option label="出库" value="out" />
-            <el-option label="盘点" value="check" />
-          </el-select>
-        </el-col>
-        <el-col :span="6">
-          <el-date-picker
-            v-model="dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            value-format="YYYY-MM-DD"
-            @change="handleSearch"
-          />
-        </el-col>
-        <el-col :span="8" style="text-align: right;">
-          <el-button type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </el-col>
-      </el-row>
-    </el-card>
+  <div class="page-container">
+    <div class="glass-toolbar">
+      <div class="toolbar-left">
+        <h2 class="page-title">库存台账</h2>
+      </div>
+      
+      <div class="toolbar-center">
+        <!-- 筛选组件内联显示 -->
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索单号/物品..."
+          :prefix-icon="Search"
+          clearable
+          class="search-input-inline"
+          @clear="handleSearch"
+          @keyup.enter="handleSearch"
+        />
+        
+        <el-select
+          v-model="operationTypeFilter"
+          placeholder="操作类型"
+          clearable
+          class="filter-select-inline"
+          @change="handleSearch"
+        >
+          <el-option label="入库" value="in" />
+          <el-option label="出库" value="out" />
+          <el-option label="盘点" value="check" />
+        </el-select>
+        
+        <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          range-separator="-"
+          start-placeholder="开始"
+          end-placeholder="结束"
+          value-format="YYYY-MM-DD"
+          @change="handleSearch"
+          class="date-picker-inline"
+          size="default"
+        />
+      </div>
+      
+      <div class="toolbar-right">
+        <el-button @click="handleReset">重置</el-button>
+      </div>
+    </div>
     
     <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stats-row">
-      <el-col :span="6">
-        <el-card class="stats-card">
-          <div class="stats-content">
-            <div class="stats-label">总记录数</div>
-            <div class="stats-value">{{ pagination.total }}</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stats-card stats-in">
-          <div class="stats-content">
-            <div class="stats-label">入库次数</div>
-            <div class="stats-value">{{ stats.inCount }}</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stats-card stats-out">
-          <div class="stats-content">
-            <div class="stats-label">出库次数</div>
-            <div class="stats-value">{{ stats.outCount }}</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stats-card stats-check">
-          <div class="stats-content">
-            <div class="stats-label">盘点次数</div>
-            <div class="stats-value">{{ stats.checkCount }}</div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon stat-total">
+          <el-icon><Document /></el-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">总记录数</div>
+          <div class="stat-value num-font">{{ pagination.total }}</div>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon stat-in">
+          <el-icon><Plus /></el-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">入库次数</div>
+          <div class="stat-value num-font">{{ stats.inCount }}</div>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon stat-out">
+          <el-icon><Minus /></el-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">出库次数</div>
+          <div class="stat-value num-font">{{ stats.outCount }}</div>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon stat-check">
+          <el-icon><Search /></el-icon>
+        </div>
+        <div class="stat-content">
+          <div class="stat-label">盘点次数</div>
+          <div class="stat-value num-font">{{ stats.checkCount }}</div>
+        </div>
+      </div>
+    </div>
     
     <!-- 台账列表 -->
-    <el-card class="table-card">
+    <div class="content-card">
       <TableComponent
         :data="ledgerList"
         :loading="loading"
@@ -111,46 +119,76 @@
         <template #columns>
           <el-table-column prop="operation_no" label="操作单号" min-width="150">
             <template #default="{ row }">
-              <el-button type="primary" link @click="handleDetail(row)">
-                {{ row.operation_no }}
-              </el-button>
+              <span class="code-text">{{ row.operation_no }}</span>
             </template>
           </el-table-column>
+          
           <el-table-column prop="operation_type" label="操作类型" width="100" align="center">
             <template #default="{ row }">
-              <el-tag :type="getOperationTypeColor(row.operation_type)">
-                {{ getOperationTypeText(row.operation_type) }}
-              </el-tag>
+              <div class="status-pill" :class="getOperationTypeClass(row.operation_type)">
+                <span class="dot"></span>
+                <span>{{ getOperationTypeText(row.operation_type) }}</span>
+              </div>
             </template>
           </el-table-column>
-          <el-table-column prop="goods_name" label="物品名称" min-width="150" />
-          <el-table-column prop="goods_code" label="物品编码" width="120" />
+          
+          <el-table-column prop="goods_name" label="物品名称" min-width="150">
+            <template #default="{ row }">
+              <span class="text-main fw-600">{{ row.goods_name }}</span>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="goods_code" label="物品编码" width="120">
+            <template #default="{ row }">
+              <span class="code-text">{{ row.goods_code }}</span>
+            </template>
+          </el-table-column>
+          
           <el-table-column prop="category_name" label="分类" width="100" />
-          <el-table-column prop="quantity" label="数量" width="80" align="center" />
-          <el-table-column prop="stock_before" label="操作前库存" width="100" align="center" />
-          <el-table-column prop="stock_after" label="操作后库存" width="100" align="center" />
+          
+          <el-table-column prop="quantity" label="数量" width="90" align="right">
+            <template #default="{ row }">
+              <span class="num-font">{{ row.quantity || 0 }}</span>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="stock_before" label="操作前库存" width="100" align="right">
+            <template #default="{ row }">
+              <span class="num-font secondary-num">{{ row.stock_before || 0 }}</span>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="stock_after" label="操作后库存" width="100" align="right">
+            <template #default="{ row }">
+              <span class="num-font">{{ row.stock_after || 0 }}</span>
+            </template>
+          </el-table-column>
+          
           <el-table-column prop="operator_name" label="操作人" width="100" />
-          <el-table-column prop="operation_time" label="操作时间" width="180">
+          
+          <el-table-column prop="operation_time" label="操作时间" width="160" align="center">
             <template #default="{ row }">
               {{ formatDate(row.operation_time) }}
             </template>
           </el-table-column>
         </template>
       </TableComponent>
-    </el-card>
+    </div>
     
     <!-- 台账详情对话框 -->
     <el-dialog
       v-model="detailDialogVisible"
       title="台账详情"
       width="700px"
+      class="custom-dialog"
     >
       <el-descriptions :column="2" border>
         <el-descriptions-item label="操作单号">{{ currentDetail.operation_no }}</el-descriptions-item>
         <el-descriptions-item label="操作类型">
-          <el-tag :type="getOperationTypeColor(currentDetail.operation_type)">
-            {{ getOperationTypeText(currentDetail.operation_type) }}
-          </el-tag>
+          <div class="status-pill" :class="getOperationTypeClass(currentDetail.operation_type)">
+            <span class="dot"></span>
+            <span>{{ getOperationTypeText(currentDetail.operation_type) }}</span>
+          </div>
         </el-descriptions-item>
         <el-descriptions-item label="物品名称">{{ currentDetail.goods_name }}</el-descriptions-item>
         <el-descriptions-item label="物品编码">{{ currentDetail.goods_code }}</el-descriptions-item>
@@ -169,6 +207,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Search, Plus, Minus, Document } from '@element-plus/icons-vue'
 import TableComponent from '@/components/common/TableComponent.vue'
 import { getStockLedger } from '@/api/stock'
 
@@ -226,18 +265,18 @@ const stats = reactive({
 })
 
 /**
- * 获取操作类型颜色
- * 
+ * 获取操作类型样式类
+ *
  * @param {string} type - 操作类型
- * @returns {string} 颜色类型
+ * @returns {string} 样式类名
  */
-const getOperationTypeColor = (type) => {
-  const colorMap = {
-    'in': 'success',
-    'out': 'warning',
-    'check': 'info'
+const getOperationTypeClass = (type) => {
+  const classMap = {
+    'in': 's-active',
+    'out': 's-warning',
+    'check': 's-info'
   }
-  return colorMap[type] || 'info'
+  return classMap[type] || ''
 }
 
 /**
@@ -381,58 +420,261 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.ledger-container {
-  padding: 20px;
+.page-container {
+  max-width: 1500px;
+  margin: 0 auto;
+  animation: fadeIn 0.4s ease-out;
 }
 
-.toolbar-card {
-  margin-bottom: 20px;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.stats-row {
-  margin-bottom: 20px;
+/* 1. 悬浮工具栏 */
+.glass-toolbar {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(241, 245, 249, 0.8);
+  padding: 12px 20px;
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.stats-card {
-  cursor: pointer;
-  transition: all 0.3s;
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0;
+  min-width: auto;
+}
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+  white-space: nowrap;
 }
 
-.stats-card:hover {
+.toolbar-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.search-input-inline {
+  width: 220px;
+  flex-shrink: 0;
+  max-width: 220px;
+}
+.filter-select-inline {
+  width: 100px;
+  flex-shrink: 0;
+  max-width: 100px;
+}
+.date-picker-inline {
+  width: 220px;
+  flex-shrink: 0;
+  max-width: 220px;
+}
+
+.toolbar-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* 2. 统计卡片 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(241, 245, 249, 0.8);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
-.stats-content {
-  text-align: center;
-  padding: 10px 0;
+.stat-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
 }
 
-.stats-label {
-  font-size: 14px;
-  color: #909399;
-  margin-bottom: 10px;
+.stat-total { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+.stat-in { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; }
+.stat-out { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; }
+.stat-check { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; }
+
+.stat-content {
+  flex: 1;
 }
 
-.stats-value {
+.stat-label {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.stat-value {
   font-size: 28px;
-  font-weight: bold;
-  color: #303133;
+  font-weight: 600;
+  color: #1e293b;
 }
 
-.stats-in .stats-value {
-  color: #67C23A;
+/* 3. 内容卡片 */
+.content-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  min-height: 500px;
 }
 
-.stats-out .stats-value {
-  color: #E6A23C;
+/* 4. 字体与细节优化 */
+.num-font {
+  font-family: 'Oswald', sans-serif !important;
+  font-weight: 500;
+  letter-spacing: -0.2px;
 }
 
-.stats-check .stats-value {
-  color: #409EFF;
+.secondary-num { color: #94a3b8; font-size: 13px; }
+.code-text { color: #64748b; font-size: 13px; font-family: 'Consolas', monospace; }
+.fw-600 { font-weight: 600; }
+.text-main { color: #1e293b; }
+
+/* 5. 状态标签设计 */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.s-active { background: #f0fdf4; color: #16a34a; }
+.s-active .dot { background: #10b981; box-shadow: 0 0 6px #10b981; }
+
+.s-danger { background: #fef2f2; color: #dc2626; }
+.s-danger .dot { background: #ef4444; }
+
+.s-warning { background: #fffbeb; color: #d97706; }
+.s-warning .dot { background: #f59e0b; }
+
+.s-info { background: #eff6ff; color: #2563eb; }
+.s-info .dot { background: #3b82f6; }
+
+/* 6. 按钮样式调整 */
+.edit-btn {
+  color: #3b82f6 !important;
+  font-weight: 500;
+}
+.edit-btn:hover {
+  color: #2563eb !important;
 }
 
-.table-card {
-  height: calc(100vh - 420px);
+/* 7. 对话框样式 */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* 响应式适配 */
+@media (max-width: 1400px) {
+  .search-input-inline {
+    width: 180px;
+    max-width: 180px;
+  }
+  .date-picker-inline {
+    width: 200px;
+    max-width: 200px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .glass-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .toolbar-left {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .toolbar-center {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .search-input-inline,
+  .filter-select-inline,
+  .date-picker-inline {
+    width: 180px;
+    max-width: none;
+  }
+  .toolbar-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .glass-toolbar {
+    padding: 12px 16px;
+  }
+  .page-title {
+    font-size: 16px;
+  }
+  .toolbar-center {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-input-inline,
+  .filter-select-inline,
+  .date-picker-inline {
+    width: 100%;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
