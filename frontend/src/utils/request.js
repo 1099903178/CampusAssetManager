@@ -17,13 +17,45 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores'
 
 /**
+ * 自动检测并配置API地址
+ * 优先级：
+ * 1. 手动配置的API地址（localStorage）
+ * 2. 自动检测局域网访问并构建API地址
+ * 3. 环境变量或默认值（/api代理）
+ */
+const getAutoApiBaseUrl = () => {
+  // 1. 检查是否手动配置了API地址（最高优先级）
+  const manuallySetUrl = localStorage.getItem('api_base_url')
+  if (manuallySetUrl && manuallySetUrl.trim() !== '') {
+    console.log('使用手动配置的API地址:', manuallySetUrl.trim())
+    return manuallySetUrl.trim()
+  }
+
+  // 2. 检测是否通过局域网IP地址访问
+  const host = window.location.host
+  const ipPattern = /^(\d{1,3}\.){3}\d{1,3}/
+  
+  if (ipPattern.test(host)) {
+    // 提取IP地址和端口
+    const [ip, port] = host.split(':')
+    // 前端端口3000或5173 -> 后端端口8000
+    const backendPort = '8000'
+    const backendUrl = `http://${ip}:${backendPort}`
+    
+    console.log('检测到局域网访问，自动配置API地址:', backendUrl)
+    return backendUrl
+  }
+
+  // 3. 默认使用Vite代理（本地开发）
+  console.log('使用默认代理配置: /api')
+  return import.meta.env.VITE_API_BASE_URL || '/api'
+}
+
+/**
  * API 基础配置
  */
 const config = {
-  // 优先使用本地存储的API地址，否则使用环境变量
-  baseURL: localStorage.getItem('api_base_url') && localStorage.getItem('api_base_url').trim() !== ''
-    ? localStorage.getItem('api_base_url')
-    : import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: getAutoApiBaseUrl(),
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json;charset=UTF-8'

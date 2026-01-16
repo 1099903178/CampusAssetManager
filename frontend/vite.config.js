@@ -32,10 +32,12 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // 允许局域网访问
     port: 3000,
+    strictPort: true, // 不自动打开端口占用
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
+        secure: false, // 允许HTTP请求到目标
         rewrite: (path) => path.replace(/^\/api/, '')
       }
     }

@@ -426,6 +426,17 @@ class GoodsService:
             db.add(new_goods)
             db.commit()
             db.refresh(new_goods)
+            
+            # 自动创建库存记录（初始库存为0）
+            new_stock = Stock(
+                goods_id=new_goods.goods_id,
+                current_stock=0,
+                min_stock=10,
+                max_stock=1000
+            )
+            db.add(new_stock)
+            db.commit()
+            
             return GoodsResponse.model_validate(new_goods)
         except Exception as e:
             db.rollback()

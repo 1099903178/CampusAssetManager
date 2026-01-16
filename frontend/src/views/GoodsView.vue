@@ -693,16 +693,17 @@ const handleSave = async () => {
     try {
       submitLoading.value = true
       
+      // 确保数据类型正确
       const data = {
-        goods_name: formData.goods_name,
-        goods_code: formData.goods_code,
-        category_id: formData.category_id,
-        specification: formData.specification,
-        unit: formData.unit,
-        purchase_price: formData.purchase_price,
-        retail_price: formData.retail_price,
-        description: formData.description,
-        status: formData.status
+        goods_name: String(formData.goods_name),
+        goods_code: String(formData.goods_code),
+        category_id: Number(formData.category_id),
+        specification: formData.specification || null,
+        unit: String(formData.unit),
+        purchase_price: Number(formData.purchase_price),
+        retail_price: formData.retail_price ? Number(formData.retail_price) : null,
+        description: formData.description || null,
+        status: Number(formData.status)
       }
       
       if (formData.goods_id) {
@@ -718,7 +719,9 @@ const handleSave = async () => {
       dialogVisible.value = false
       loadGoodsList()
     } catch (error) {
-      ElMessage.error(formData.goods_id ? '更新失败' : '创建失败')
+      console.error('保存失败错误详情:', error)
+      console.error('错误响应数据:', error.response?.data)
+      ElMessage.error(`${formData.goods_id ? '更新' : '创建'}失败: ${error.response?.data?.detail || error.message}`)
     } finally {
       submitLoading.value = false
     }

@@ -41,6 +41,11 @@
           <el-icon><Box /></el-icon>
           <template #title>物品管理</template>
         </el-menu-item>
+        
+        <el-menu-item index="/category">
+          <el-icon><Folder /></el-icon>
+          <template #title>分类管理</template>
+        </el-menu-item>
 
         <el-sub-menu index="stock">
           <template #title>
@@ -148,7 +153,7 @@ import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores'
 import {
-  Odometer, DataBoard, Box, House, TrendCharts,
+  Odometer, DataBoard, Box, House, TrendCharts, Folder,
   Setting, Fold, Expand, Bell, CaretBottom, User, SwitchButton
 } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
