@@ -1,0 +1,207 @@
+/**
+ * CampusAssetManager/frontend/src/style.css
+ * 全局样式文件
+ * 
+ * 功能说明：
+ * - 定义全局CSS变量
+ * - 设置基础样式
+ *
+ * 设计语言：Modern Enterprise (极简、高效、微阴影)
+ *
+ * 作者：CampusAssetManager开发团队
+ * 日期：2026-01-05
+ */
+
+:root {
+  /* 品牌色系 - 采用更具科技感的深蓝与活力蓝 */
+  --primary-brand: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-light: #eff6ff;
+  
+  /* 中性色系 - 这种冷灰比纯黑更有质感 */
+  --text-main: #1e293b;
+  --text-secondary: #64748b;
+  --text-placeholder: #94a3b8;
+  
+  /* 背景体系 */
+  --bg-app: #f8fafc; /* 极淡的蓝灰背景，护眼且高级 */
+  --bg-card: rgba(255, 255, 255, 0.95); /* 微透明卡片 */
+  --bg-glass: rgba(255, 255, 255, 0.7);
+  
+  /* 阴影体系 - 漫射光感 */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-glow: 0 0 15px rgba(37, 99, 235, 0.15); /* 品牌色辉光 */
+  
+  /* 动效参数 */
+  --ease-spring: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden; /* 防止滚动条跳动 */
+}
+
+/* 定义 Oswald 数字专用类 */
+.num-font {
+  font-family: 'Oswald', sans-serif !important;
+  font-weight: 500;
+  letter-spacing: -0.5px; /* 数字略微紧凑更有高级感 */
+}
+
+/* 针对金额显示的特殊优化 */
+.price-text::before {
+  content: "¥";
+  font-size: 0.8em;
+  margin-right: 2px;
+  font-family: sans-serif; /* 货币符号使用常规字体 */
+}
+
+/* 覆盖 Element Plus 表格中的数字列默认样式 */
+.el-table .num-font {
+  font-size: 16px;
+  color: #1e293b;
+}
+
+/* --- 需求6：统一且高级的全局提示样式 (覆盖Element Plus) --- */
+.el-message {
+  border: none !important;
+  box-shadow: var(--shadow-lg) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px);
+  padding: 12px 24px !important;
+  border-radius: 12px !important;
+  transform-origin: top center;
+  margin-top: 16px !important;
+}
+
+.el-message--success {
+  border-left: 4px solid #10b981 !important;
+}
+.el-message--warning {
+  border-left: 4px solid #f59e0b !important;
+}
+.el-message--error {
+  border-left: 4px solid #ef4444 !important;
+}
+
+.el-message .el-message__content {
+  color: var(--text-main) !important;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+/* --- 高级感组件覆写 --- */
+
+/* 卡片 - 去除生硬边框，使用阴影与圆角 */
+.el-card {
+  border: none !important;
+  border-radius: 16px !important;
+  background-color: var(--bg-card) !important;
+  box-shadow: var(--shadow-sm) !important;
+  transition: all 0.3s var(--ease-spring);
+}
+
+.el-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* 按钮 - 增加点击反馈与辉光 */
+.el-button--primary {
+  background-color: var(--primary-brand) !important;
+  border-color: var(--primary-brand) !important;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+  transition: all 0.2s;
+}
+
+.el-button--primary:hover {
+  background-color: var(--primary-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.3);
+}
+
+.el-button:active {
+  transform: scale(0.98);
+}
+
+/* 表格 - 现代极简风格 */
+.el-table {
+  --el-table-header-bg-color: #f1f5f9 !important;
+  --el-table-row-hover-bg-color: #f8fafc !important;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.el-table th.el-table__cell {
+  background-color: #f8fafc !important;
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0 !important;
+  height: 50px;
+}
+
+.el-table td.el-table__cell {
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding: 12px 0;
+}
+
+/* 输入框 - 聚焦动效 */
+.el-input__wrapper {
+  border-radius: 8px !important;
+  box-shadow: 0 0 0 1px #e2e8f0 inset !important;
+  transition: all 0.2s;
+}
+
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) inset !important;
+}
+
+/* 对话框 - 沉浸式 */
+.el-dialog {
+  border-radius: 20px !important;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.el-dialog__header {
+  margin-right: 0 !important;
+  background: #f8fafc;
+  padding: 20px 24px !important;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.el-dialog__title {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* --- 动画工具类 --- */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 页面切换动画 */
+.slide-fade-enter-active {
+  transition: all 0.4s cubic-bezier(1, 0.5, 0.8, 1);
+}
+
+.slide-fade-leave-active {
+  transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateX(20px);
+  opacity: 0;
+}
