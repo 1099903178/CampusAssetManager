@@ -13,325 +13,389 @@
  */
 
 <template>
-  <div class="layout-container">
-    <aside class="layout-aside" :class="{ 'is-collapsed': sidebarCollapsed }">
-      <div class="aside-header">
+  <el-container class="app-layout">
+    <el-aside :width="isCollapse ? '64px' : '240px'" class="main-aside">
+      <div class="aside-header" :class="{ 'collapsed': isCollapse }">
         <div class="logo-icon">
-          <el-icon :size="20" color="#fff"><Odometer /></el-icon>
+          <el-icon :size="22" color="white"><Odometer /></el-icon>
         </div>
-        <span class="app-title" v-show="!sidebarCollapsed">校物通</span>
+        <transition name="fade">
+          <span v-if="!isCollapse" class="app-title">校物通</span>
+        </transition>
       </div>
       
-      <div class="menu-wrapper">
-        <el-menu
-          :default-active="activeMenu"
-          :collapse="sidebarCollapsed"
-          :collapse-transition="false"
-          router
-          background-color="#001529"
-          text-color="rgba(255, 255, 255, 0.65)"
-          active-text-color="#ffffff"
-          class="custom-menu"
-        >
-          <el-menu-item index="/home">
-            <el-icon><Odometer /></el-icon>
-            <template #title>工作台</template>
-          </el-menu-item>
-          
-          <el-menu-item index="/goods">
-            <el-icon><Goods /></el-icon>
-            <template #title>物品管理</template>
-          </el-menu-item>
-          
-          <el-menu-item index="/stock">
-            <el-icon><Box /></el-icon>
-            <template #title>库存管理</template>
-          </el-menu-item>
-          
-          <el-menu-item index="/ledger">
-            <el-icon><Document /></el-icon>
-            <template #title>库存台账</template>
-          </el-menu-item>
-          
-          <el-menu-item index="/check">
-            <el-icon><DocumentChecked /></el-icon>
-            <template #title>盘点管理</template>
-          </el-menu-item>
-          
-          <el-menu-item index="/statistics">
-            <el-icon><DataLine /></el-icon>
-            <template #title>数据分析</template>
-          </el-menu-item>
-          
-          <el-menu-item index="/logs">
-            <el-icon><Clock /></el-icon>
-            <template #title>操作日志</template>
-          </el-menu-item>
-          
-          <el-menu-item index="/database">
-            <el-icon><FolderOpened /></el-icon>
-            <template #title>数据备份</template>
-          </el-menu-item>
-          
-          <el-menu-item index="/settings">
-            <el-icon><Setting /></el-icon>
-            <template #title>系统设置</template>
-          </el-menu-item>
-        </el-menu>
-      </div>
-    </aside>
+      <el-menu
+        :default-active="activeMenu"
+        class="aside-menu"
+        :collapse="isCollapse"
+        router
+        unique-opened
+        :collapse-transition="false"
+      >
+        <el-menu-item index="/home">
+          <el-icon><DataBoard /></el-icon>
+          <template #title>工作台</template>
+        </el-menu-item>
+        
+        <el-menu-item index="/goods">
+          <el-icon><Box /></el-icon>
+          <template #title>物品管理</template>
+        </el-menu-item>
 
-    <div class="layout-body">
-      <header class="layout-header">
+        <el-sub-menu index="stock">
+          <template #title>
+            <el-icon><House /></el-icon>
+            <span>库存管理</span>
+          </template>
+          <el-menu-item index="/stock">实时库存</el-menu-item>
+          <el-menu-item index="/check">库存盘点</el-menu-item>
+          <el-menu-item index="/ledger">库存台账</el-menu-item>
+        </el-sub-menu>
+
+        <el-menu-item index="/statistics">
+          <el-icon><TrendCharts /></el-icon>
+          <template #title>数据分析</template>
+        </el-menu-item>
+        
+        <el-sub-menu index="system" v-if="isAdmin">
+          <template #title>
+            <el-icon><Setting /></el-icon>
+            <span>系统设置</span>
+          </template>
+          <el-menu-item index="/logs">操作日志</el-menu-item>
+          <el-menu-item index="/database">数据维护</el-menu-item>
+          <el-menu-item index="/settings">参数配置</el-menu-item>
+        </el-sub-menu>
+      </el-menu>
+    </el-aside>
+
+    <el-container class="main-container">
+      <el-header class="main-header">
         <div class="header-left">
-          <div class="trigger-btn" @click="toggleSidebar">
-            <el-icon :size="20" color="#595959">
-              <Fold v-if="!sidebarCollapsed" />
+          <div class="collapse-btn" @click="toggleCollapse">
+            <el-icon :size="20" color="#64748b">
+              <Fold v-if="!isCollapse" />
               <Expand v-else />
             </el-icon>
           </div>
-          </div>
+          
+          <el-breadcrumb separator="/" class="custom-breadcrumb">
+            <el-breadcrumb-item :to="{ path: '/' }">
+              <span class="breadcrumb-text">首页</span>
+            </el-breadcrumb-item>
+            <el-breadcrumb-item>
+              <span class="breadcrumb-text active">{{ currentRouteName }}</span>
+            </el-breadcrumb-item>
+          </el-breadcrumb>
+        </div>
         
         <div class="header-right">
-          <el-dropdown trigger="click" @command="handleCommand">
-            <div class="user-info-trigger">
-              <el-avatar :size="32" :icon="UserFilled" class="user-avatar" />
-              <div class="user-text">
-                <span class="username">{{ username }}</span>
-                <span class="role-badge">管理员</span>
+          <el-popover placement="bottom-end" :width="300" trigger="click">
+            <template #reference>
+              <div class="action-item">
+                <el-badge is-dot class="notification-badge" type="danger">
+                  <el-icon class="header-icon"><Bell /></el-icon>
+                </el-badge>
               </div>
-              <el-icon class="arrow-icon"><CaretBottom /></el-icon>
+            </template>
+            <div class="notify-box" style="padding: 10px;">
+              <h4 style="margin: 0 0 10px 0; font-size: 14px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">系统通知</h4>
+              <p style="font-size: 12px; color: #64748b;">暂无未读消息</p>
+            </div>
+          </el-popover>
+          
+          <el-dropdown trigger="click" @command="handleCommand">
+            <div class="user-profile">
+              <el-avatar :size="32" class="user-avatar">
+                {{ username.charAt(0).toUpperCase() }}
+              </el-avatar>
+              <span class="username">{{ username }}</span>
+              <el-icon class="el-icon--right" color="#94a3b8"><CaretBottom /></el-icon>
             </div>
             <template #dropdown>
-              <el-dropdown-menu class="user-dropdown">
-                <el-dropdown-item command="profile">
-                  <el-icon><User /></el-icon>个人中心
-                </el-dropdown-item>
-                <el-dropdown-item command="settings">
-                  <el-icon><Setting /></el-icon>偏好设置
-                </el-dropdown-item>
-                <el-dropdown-item divided command="logout" style="color: #ff4d4f;">
-                  <el-icon><SwitchButton /></el-icon>退出登录
-                </el-dropdown-item>
+              <el-dropdown-menu class="custom-dropdown">
+                <el-dropdown-item command="profile"><el-icon><User /></el-icon>个人中心</el-dropdown-item>
+                <el-dropdown-item divided command="logout" style="color: #ef4444;"><el-icon><SwitchButton /></el-icon>退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
         </div>
-      </header>
-      
-      <main class="layout-main">
+      </el-header>
+
+      <el-main class="app-main">
         <router-view v-slot="{ Component }">
-          <transition name="fade-transform" mode="out-in">
-            <component :is="Component" :key="$route.path" />
+          <transition name="fade-slide" mode="out-in">
+            <component :is="Component" />
           </transition>
         </router-view>
-      </main>
-    </div>
-  </div>
+      </el-main>
+    </el-container>
+  </el-container>
 </template>
 
 <script setup>
+/**
+ * 通用布局组件逻辑
+ *
+ * 导入模块：
+ * - Vue Composition API：ref, computed
+ * - Vue Router：useRouter, useRoute
+ * - Pinia Store：useUserStore
+ * - Element Plus 图标组件
+ * - Element Plus 弹窗组件
+ */
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores'
 import {
-  Fold, Expand, UserFilled, User, Setting, SwitchButton,
-  Odometer, Goods, Box, DocumentChecked, DataLine, CaretBottom,
-  Document, Clock, FolderOpened
+  Odometer, DataBoard, Box, House, TrendCharts,
+  Setting, Fold, Expand, Bell, CaretBottom, User, SwitchButton
 } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 
+/**
+ * Vue Router 实例
+ */
 const router = useRouter()
 const route = useRoute()
+
+/**
+ * 用户状态管理 Store
+ */
 const userStore = useUserStore()
 
-const sidebarCollapsed = ref(false)
+/**
+ * 侧边栏折叠状态
+ *
+ * @type {Ref<boolean>}
+ * - false: 展开状态（宽度 240px）
+ * - true: 折叠状态（宽度 64px）
+ */
+const isCollapse = ref(false)
+
+/**
+ * 当前激活的菜单项
+ *
+ * 使用计算属性自动同步路由路径，确保菜单高亮状态正确
+ *
+ * @returns {string} 当前路由路径
+ */
 const activeMenu = computed(() => route.path)
+
+/**
+ * 用户名
+ *
+ * 从用户 Store 中获取当前登录用户的用户名
+ * 如果未设置则显示默认值 'Admin'
+ *
+ * @returns {string} 用户名
+ */
 const username = computed(() => userStore.username || 'Admin')
 
-const toggleSidebar = () => { sidebarCollapsed.value = !sidebarCollapsed.value }
+/**
+ * 是否为管理员
+ *
+ * 根据用户权限判断当前用户是否为管理员
+ * 用于控制系统设置菜单的显示/隐藏
+ *
+ * @returns {boolean} true 表示管理员
+ */
+const isAdmin = computed(() => userStore.hasPermission('admin'))
 
+/**
+ * 当前路由名称
+ *
+ * 从路由元信息中获取页面标题，显示在面包屑导航中
+ * 如果未设置则显示 '当前页面'
+ *
+ * @returns {string} 路由名称
+ */
+const currentRouteName = computed(() => route.meta.title || '当前页面')
+
+/**
+ * 切换侧边栏折叠状态
+ *
+ * 点击折叠按钮时触发，在展开和折叠状态之间切换
+ *
+ * 设计原则：
+ * - 响应式：使用 ref 管理折叠状态
+ * - 用户体验：平滑的过渡动画（CSS 中定义）
+ */
+const toggleCollapse = () => { isCollapse.value = !isCollapse.value }
+
+/**
+ * 处理用户下拉菜单命令
+ *
+ * 处理用户头像下拉菜单中的操作命令
+ *
+ * @param {string} command - 命令类型
+ *   - 'logout': 退出登录
+ *   - 'profile': 个人中心（暂未实现）
+ *
+ * 业务逻辑：
+ * - logout: 显示确认对话框，用户确认后清除登录状态并跳转到登录页
+ * - 使用 ElMessageBox confirm 确保用户意图，提供更清晰的提示信息
+ * - 调用 userStore.logout() 清除登录状态
+ * - 使用 router.push('/login') 跳转到登录页
+ */
 const handleCommand = (command) => {
   if (command === 'logout') {
-    userStore.logout()
-    router.push('/login')
-  } else if (command === 'settings') {
-    router.push('/settings')
+    ElMessageBox.confirm(
+      '退出登录后，您需要重新输入用户名和密码才能访问系统。',
+      '确定退出登录吗?',
+      {
+        confirmButtonText: '确定退出',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: 'logout-confirm-dialog'
+      }
+    )
+      .then(() => {
+        // 清除登录状态
+        userStore.logout()
+        // 跳转到登录页
+        router.push('/login')
+      })
+      .catch(() => {
+        // 用户取消退出
+      })
   }
 }
 </script>
 
 <style scoped>
-.layout-container {
-  display: flex;
-  height: 100vh;
-  width: 100%;
-}
+.app-layout { height: 100vh; background-color: #f8fafc; }
 
-/* 侧边栏 */
-.layout-aside {
-  width: 240px; /* 稍微加宽，更大气 */
-  background-color: #001529;
+/* 侧边栏样式 */
+.main-aside {
+  background-color: #ffffff;
+  border-right: 1px solid #f1f5f9;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
-  transition: width 0.3s cubic-bezier(0.2, 0, 0, 1);
-  box-shadow: 2px 0 8px 0 rgba(29, 35, 41, 0.05);
   z-index: 20;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.02);
 }
 
-.layout-aside.is-collapsed {
-  width: 64px;
-}
-
-.aside-header {
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #002140; /* 略浅于侧边栏背景 */
-  overflow: hidden;
-  flex-shrink: 0;
-}
+.aside-header { height: 64px; display: flex; align-items: center; padding: 0 24px; }
+.aside-header.collapsed { padding: 0; justify-content: center; }
 
 .logo-icon {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #1677ff;
-  border-radius: 6px;
-  margin-right: 12px;
-  transition: margin 0.3s;
-}
-
-.layout-aside.is-collapsed .logo-icon {
-  margin-right: 0;
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
 }
 
 .app-title {
-  color: #fff;
-  font-size: 18px;
+  font-size: 18px; font-weight: 800; color: #1e293b;
+  margin-left: 12px; letter-spacing: 0.5px; white-space: nowrap;
+}
+
+.aside-menu { border-right: none; flex: 1; padding: 0 12px; overflow-y: auto; }
+
+/* 菜单项深度优化 */
+:deep(.el-menu-item), :deep(.el-sub-menu__title) {
+  height: 48px; line-height: 48px; margin-bottom: 4px;
+  border-radius: 10px; color: #64748b; font-weight: 500;
+}
+
+:deep(.el-menu-item.is-active) {
+  background: linear-gradient(90deg, #eff6ff 0%, #f8fafc 100%);
+  color: #2563eb; font-weight: 600; position: relative;
+}
+
+:deep(.el-menu-item.is-active::before) {
+  content: ''; position: absolute; left: 0; top: 12px; bottom: 12px;
+  width: 4px; background: #2563eb; border-radius: 0 4px 4px 0;
+}
+
+/* 顶部导航 */
+.main-header {
+  background-color: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px);
+  height: 64px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  position: sticky; top: 0; z-index: 10;
+}
+
+.header-left { display: flex; align-items: center; gap: 20px; }
+.collapse-btn { cursor: pointer; color: #64748b; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 10px; transition: 0.2s; }
+.collapse-btn:hover { background: #f1f5f9; }
+
+.header-right { display: flex; align-items: center; gap: 20px; }
+.action-item { cursor: pointer; color: #64748b; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 12px; transition: 0.2s; }
+.action-item:hover { background: #eff6ff; color: #2563eb; }
+
+.user-profile { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 6px 12px; border-radius: 30px; transition: 0.2s; border: 1px solid transparent; }
+.user-profile:hover { background: white; border-color: #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.user-avatar { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; font-weight: 600; font-size: 14px; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.username { font-size: 14px; font-weight: 600; color: #1e293b; }
+
+/* 动画效果 */
+.fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.fade-slide-enter-from { opacity: 0; transform: translateY(10px); }
+.fade-slide-leave-to { opacity: 0; transform: translateY(-10px); }
+</style>
+
+<!-- 退出登录确认对话框自定义样式 -->
+<style>
+/* 确认对话框 - 强制圆角 */
+.logout-confirm-dialog.el-message-box,
+.el-overlay-message-box .el-message-box.logout-confirm-dialog {
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+/* 确认对话框标题 */
+.logout-confirm-dialog .el-message-box__title {
+  font-size: 16px;
   font-weight: 600;
-  white-space: nowrap;
-  letter-spacing: 0.5px;
+  color: #1e293b;
 }
 
-.menu-wrapper {
-  flex: 1;
-  padding: 16px 0;
-  overflow-y: auto;
-}
-
-/* 菜单项优化 */
-.custom-menu {
-  border-right: none;
-}
-
-.custom-menu :deep(.el-menu-item) {
-  height: 50px;
-  line-height: 50px;
-  margin: 4px 8px; /* 增加四周间距 */
-  border-radius: 6px; /* 圆角菜单项 */
-  width: auto;
-}
-
-.custom-menu :deep(.el-menu-item:hover) {
-  background-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-/* 选中状态高亮 */
-.custom-menu :deep(.el-menu-item.is-active) {
-  background-color: #1677ff !important;
-  color: #fff !important;
-  font-weight: 500;
-  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.4);
-}
-
-.layout-aside.is-collapsed .custom-menu :deep(.el-menu-item) {
-  margin: 4px 0; /* 折叠时去除左右间距 */
-  border-radius: 0;
-  display: flex;
-  justify-content: center;
-  padding: 0 !important;
-}
-
-/* 顶部 Header */
-.layout-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background-color: #f5f7fa;
-  min-width: 0;
-}
-
-.layout-header {
-  height: 64px;
-  background-color: #fff;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02); /* 极简阴影 */
-  z-index: 10;
-}
-
-.trigger-btn {
-  padding: 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.3s;
-  display: flex;
-}
-
-.trigger-btn:hover {
-  background: rgba(0, 0, 0, 0.03);
-}
-
-.user-info-trigger {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: all 0.3s;
-}
-
-.user-info-trigger:hover {
-  background: rgba(0, 0, 0, 0.03);
-}
-
-.user-avatar {
-  background-color: #1677ff;
-  border: 2px solid rgba(22, 119, 255, 0.1);
-}
-
-.user-text {
-  display: flex;
-  flex-direction: column;
-  margin: 0 8px;
-  line-height: 1.2;
-}
-
-.username {
+/* 确认对话框内容 */
+.logout-confirm-dialog .el-message-box__message {
   font-size: 14px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+/* 按钮区域 */
+.logout-confirm-dialog .el-message-box__btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* 所有按钮统一样式 - 更大的圆角 */
+.logout-confirm-dialog .el-button {
+  padding: 9px 20px;
+  border-radius: 12px;
   font-weight: 500;
-  color: #262626;
+  font-size: 14px;
+  transition: all 0.2s;
 }
 
-.role-badge {
-  font-size: 11px;
-  color: #8c8c8c;
+/* 取消按钮悬停效果 */
+.logout-confirm-dialog .el-button--default:not(.is-primary):hover {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
 }
 
-.arrow-icon {
-  font-size: 12px;
-  color: #bfbfbf;
+/* 确认退出按钮 - 红色（强制覆盖） */
+.logout-confirm-dialog .el-button--primary,
+.el-overlay-message-box .logout-confirm-dialog .el-button--primary {
+  background: #ef4444 !important;
+  border-color: #ef4444 !important;
+  color: white !important;
 }
 
-.layout-main {
-  flex: 1;
-  padding: 24px;
-  overflow-y: auto;
-  overflow-x: hidden;
+.logout-confirm-dialog .el-button--primary:hover,
+.el-overlay-message-box .logout-confirm-dialog .el-button--primary:hover {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
 }
 </style>

@@ -19,56 +19,58 @@
  */
 
 <template>
-  <div class="stock-container">
-    <!-- 工具栏 -->
-      <el-card class="toolbar-card">
-        <el-row :gutter="20">
-          <el-col :span="6">
-            <el-input
-              v-model="searchForm.goods_name"
-              placeholder="搜索物品名称、编码"
-              clearable
-              @clear="handleSearch"
-              @keyup.enter="handleSearch"
-            >
-              <template #append>
-                <el-button @click="handleSearch">搜索</el-button>
-              </template>
-            </el-input>
-          </el-col>
-          <el-col :span="4">
-            <el-select
-              v-model="searchForm.stock_status"
-              placeholder="库存状态"
-              clearable
-              @change="handleSearch"
-            >
-              <el-option label="低库存" value="low" />
-              <el-option label="库存过高" value="over" />
-              <el-option label="正常" value="normal" />
-            </el-select>
-          </el-col>
-          <el-col :span="6">
-            <el-button type="danger" @click="handleShowLowStock">
-              <el-icon><Warning /></el-icon>
-              只显示低库存
-            </el-button>
-            <el-button @click="handleReset">重置</el-button>
-            <el-button type="primary" @click="handleBatchThreshold" v-if="canAdjustStock">
-              <el-icon><Setting /></el-icon>
-              批量设置阈值
-            </el-button>
-          </el-col>
-          <el-col :span="8" style="text-align: right;">
-            <el-button type="success" @click="handleStockIn" v-if="canCreate">入库</el-button>
-            <el-button type="warning" @click="handleStockOut">出库</el-button>
-            <el-button type="danger" @click="handleStockAdjust" v-if="canAdjustStock">调整</el-button>
-          </el-col>
-        </el-row>
-      </el-card>
+  <div class="page-container">
+    <div class="glass-toolbar">
+      <div class="toolbar-left">
+        <el-input
+          v-model="searchForm.goods_name"
+          placeholder="搜索物品名称、编码..."
+          :prefix-icon="Search"
+          clearable
+          class="search-input"
+          @clear="handleSearch"
+          @keyup.enter="handleSearch"
+        />
+        
+        <el-select
+          v-model="searchForm.stock_status"
+          placeholder="库存状态"
+          clearable
+          class="filter-select"
+          @change="handleSearch"
+        >
+          <el-option label="低库存" value="low" />
+          <el-option label="库存过高" value="over" />
+          <el-option label="正常" value="normal" />
+        </el-select>
+      </div>
       
-      <!-- 库存列表 -->
-      <el-card class="table-card">
+      <div class="toolbar-right">
+        <el-button @click="handleShowLowStock" v-if="canAdjustStock">
+          <el-icon><Warning /></el-icon>
+          低库存
+        </el-button>
+        <el-button @click="handleReset">重置</el-button>
+        <el-button type="primary" @click="handleBatchThreshold" v-if="canAdjustStock">
+          <el-icon><Setting /></el-icon>
+          批量阈值
+        </el-button>
+        <el-button type="success" @click="handleStockIn" v-if="canCreate">
+          <el-icon><Plus /></el-icon>
+          入库
+        </el-button>
+        <el-button type="warning" @click="handleStockOut">
+          <el-icon><Minüs /></el-icon>
+          出库
+        </el-button>
+        <el-button type="danger" @click="handleStockAdjust" v-if="canAdjustStock">
+          <el-icon><Setting /></el-icon>
+          调整
+        </el-button>
+      </div>
+    </div>
+    
+    <div class="content-card">
         <TableComponent
           :data="stockList"
           :loading="loading"
@@ -80,52 +82,73 @@
           @update:limit="handleSizeChange"
         >
           <template #columns>
-            <el-table-column prop="goods_id" label="物品ID" width="80" align="center" />
-            <el-table-column prop="goods_name" label="物品名称" min-width="150" />
-            <el-table-column prop="category_name" label="分类名称" width="120" />
-            <el-table-column prop="current_stock" label="当前库存" width="100" align="right">
+            <el-table-column prop="goods_id" label="物品ID" width="70" align="center" fixed="left">
               <template #default="{ row }">
-                <span :class="getStockClass(row)">
+                <span class="num-font secondary-num">{{ row.goods_id }}</span>
+              </template>
+            </el-table-column>
+
+            <el-table-column prop="goods_name" label="物品名称" min-width="150">
+              <template #default="{ row }">
+                <span class="text-main fw-600">{{ row.goods_name }}</span>
+              </template>
+            </el-table-column>
+
+            <el-table-column prop="category_name" label="分类名称" width="120" />
+
+            <el-table-column prop="current_stock" label="当前库存" width="110" align="right">
+              <template #default="{ row }">
+                <span class="num-font" :class="getStockClass(row)">
                   {{ row.current_stock || 0 }}
                 </span>
               </template>
             </el-table-column>
+
             <el-table-column prop="min_stock" label="最小库存" width="90" align="center" />
+
             <el-table-column prop="max_stock" label="最大库存" width="90" align="center" />
-            <el-table-column prop="stock_status" label="库存状态" width="100" align="center">
+
+            <el-table-column prop="stock_status" label="库存状态" width="110" align="center">
               <template #default="{ row }">
-                <el-tag :type="getStockStatusType(row)" size="small">
-                  {{ row.status_text || '未知' }}
-                </el-tag>
+                <div class="status-pill" :class="getStockStatusClass(row)">
+                  <span class="dot"></span>
+                  <span>{{ getStockStatusLabel(row) }}</span>
+                </div>
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="物品状态" width="90" align="center">
+
+            <el-table-column prop="status" label="物品状态" width="110" align="center">
               <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)" size="small">
-                  {{ getStatusText(row.status) }}
-                </el-tag>
+                <div class="status-pill" :class="getStatusClass(row.status)">
+                  <span class="dot"></span>
+                  <span>{{ getStatusText(row.status) }}</span>
+                </div>
               </template>
             </el-table-column>
+
             <el-table-column prop="update_time" label="更新时间" width="160" align="center">
               <template #default="{ row }">
                 {{ formatDate(row.update_time) }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="150" align="center" fixed="right">
+
+            <el-table-column label="操作" width="160" align="center" fixed="right">
               <template #default="{ row }">
-                <el-button type="primary" link @click="handleDetail(row)">详情</el-button>
-                <el-button type="warning" link @click="handleThreshold(row)" v-if="canAdjustStock">设置阈值</el-button>
+                <el-button link class="edit-btn" @click="handleDetail(row)">详情</el-button>
+                <el-divider direction="vertical" />
+                <el-button type="danger" link @click="handleThreshold(row)" v-if="canAdjustStock">设置阈值</el-button>
               </template>
             </el-table-column>
           </template>
         </TableComponent>
-      </el-card>
+      </div>
       
       <!-- 入库对话框 -->
       <el-dialog
         v-model="inDialogVisible"
         title="物品入库"
         width="600px"
+        class="custom-dialog"
         @close="handleInDialogClose"
       >
         <el-form
@@ -133,6 +156,7 @@
           :model="inFormData"
           :rules="inFormRules"
           label-width="100px"
+          class="modern-form"
         >
           <el-form-item label="物品" prop="goods_id">
             <el-select
@@ -200,26 +224,30 @@
             />
           </el-form-item>
         </el-form>
+          
+          <template #footer>
+            <div class="dialog-footer">
+              <el-button @click="inDialogVisible = false">取消</el-button>
+              <el-button type="primary" @click="handleInSubmit" :loading="inSubmitting">确定</el-button>
+            </div>
+          </template>
+        </el-dialog>
         
-        <template #footer>
-          <el-button @click="inDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleInSubmit" :loading="inSubmitting">确定</el-button>
-        </template>
-      </el-dialog>
-      
-      <!-- 出库对话框 -->
-      <el-dialog
-        v-model="outDialogVisible"
-        title="物品出库"
-        width="600px"
-        @close="handleOutDialogClose"
-      >
-        <el-form
-          ref="outFormRef"
-          :model="outFormData"
-          :rules="outFormRules"
-          label-width="100px"
+        <!-- 出库对话框 -->
+        <el-dialog
+          v-model="outDialogVisible"
+          title="物品出库"
+          width="600px"
+          class="custom-dialog"
+          @close="handleOutDialogClose"
         >
+          <el-form
+            ref="outFormRef"
+            :model="outFormData"
+            :rules="outFormRules"
+            label-width="100px"
+            class="modern-form"
+          >
           <el-form-item label="物品" prop="goods_id">
             <el-select
               v-model="outFormData.goods_id"
@@ -296,26 +324,23 @@
             />
           </el-form-item>
         </el-form>
+          
+          <template #footer>
+            <div class="dialog-footer">
+              <el-button @click="outDialogVisible = false">取消</el-button>
+              <el-button type="primary" @click="handleOutSubmit" :loading="outSubmitting">确定</el-button>
+            </div>
+          </template>
+        </el-dialog>
         
-        <template #footer>
-          <el-button @click="outDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleOutSubmit" :loading="outSubmitting">确定</el-button>
-        </template>
-      </el-dialog>
-      
-      <!-- 库存详情对话框 -->
-      <StockDetailDialog
-        v-model="detailVisible"
-        :goods="selectedGoods"
-      />
-      
-      <!-- 库存调整对话框 -->
-      <el-dialog
-        v-model="adjustDialogVisible"
-        title="库存调整"
-        width="600px"
-        @close="handleAdjustDialogClose"
-      >
+        <!-- 库存调整对话框 -->
+        <el-dialog
+          v-model="adjustDialogVisible"
+          title="库存调整"
+          width="600px"
+          class="custom-dialog"
+          @close="handleAdjustDialogClose"
+        >
         <el-alert
           title="警告"
           type="warning"
@@ -377,26 +402,30 @@
             />
           </el-form-item>
         </el-form>
-        
-        <template #footer>
-          <el-button @click="adjustDialogVisible = false">取消</el-button>
-          <el-button type="danger" @click="handleAdjustSubmit" :loading="adjustSubmitting">确定调整</el-button>
-        </template>
-      </el-dialog>
-    
-    <!-- 单个物品阈值设置对话框 -->
-    <el-dialog
-      v-model="thresholdDialogVisible"
-      title="设置库存阈值"
-      width="500px"
-      @close="handleThresholdDialogClose"
-    >
-      <el-form
-        ref="thresholdFormRef"
-        :model="thresholdFormData"
-        :rules="thresholdFormRules"
-        label-width="100px"
+          
+          <template #footer>
+            <div class="dialog-footer">
+              <el-button @click="adjustDialogVisible = false">取消</el-button>
+              <el-button type="danger" @click="handleAdjustSubmit" :loading="adjustSubmitting">确定调整</el-button>
+            </div>
+          </template>
+        </el-dialog>
+      
+      <!-- 单个物品阈值设置对话框 -->
+      <el-dialog
+        v-model="thresholdDialogVisible"
+        title="设置库存阈值"
+        width="500px"
+        class="custom-dialog"
+        @close="handleThresholdDialogClose"
       >
+        <el-form
+          ref="thresholdFormRef"
+          :model="thresholdFormData"
+          :rules="thresholdFormRules"
+          label-width="100px"
+          class="modern-form"
+        >
         <el-form-item label="物品名称">
           <el-input v-model="thresholdFormData.goods_name" disabled />
         </el-form-item>
@@ -432,8 +461,10 @@
       </el-form>
       
       <template #footer>
-        <el-button @click="thresholdDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleThresholdSubmit" :loading="thresholdSubmitting">确定</el-button>
+        <div class="dialog-footer">
+          <el-button @click="thresholdDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleThresholdSubmit" :loading="thresholdSubmitting">确定</el-button>
+        </div>
       </template>
     </el-dialog>
     
@@ -442,6 +473,7 @@
       v-model="batchThresholdDialogVisible"
       title="批量设置库存阈值"
       width="500px"
+      class="custom-dialog"
       @close="handleBatchThresholdDialogClose"
     >
       <el-alert
@@ -485,28 +517,44 @@
       </el-form>
       
       <template #footer>
-        <el-button @click="batchThresholdDialogVisible = false">取消</el-button>
-        <el-button type="danger" @click="handleBatchThresholdSubmit" :loading="batchThresholdSubmitting">
-          批量应用
-        </el-button>
+        <div class="dialog-footer">
+          <el-button @click="batchThresholdDialogVisible = false">取消</el-button>
+          <el-button type="danger" @click="handleBatchThresholdSubmit" :loading="batchThresholdSubmitting">
+            批量应用
+          </el-button>
+        </div>
       </template>
     </el-dialog>
+    
+    <!-- 库存详情对话框 -->
+    <StockDetailDialog
+      v-model="detailVisible"
+      :goods="selectedGoods"
+    />
   </div>
 </template>
 
 <script setup>
 /**
- * 导入依赖
+ * 库存管理页面逻辑
+ *
+ * 导入模块：
+ * - Vue Composition API：ref, reactive, computed, onMounted, nextTick, watch
+ * - Element Plus 组件和消息提示
+ * - Element Plus 图标组件
+ * - 表格组件
+ * - 库存管理 API
+ * - 用户状态管理 Store
  */
-import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import { useUserStore } from '@/stores/user'
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Warning, Setting, Plus, Minus } from '@element-plus/icons-vue'
 import TableComponent from '@/components/common/TableComponent.vue'
 import StockDetailDialog from '@/components/common/StockDetailDialog.vue'
+import { useUserStore } from '@/stores/user'
 import { getStockList, getGoodsList } from '@/api/goods'
 import { createStockIn, createStockOut, adjustStock, getStockListEnhanced, updateStockThreshold, batchUpdateStockThresholds } from '@/api/stock'
 import { getConfigs } from '@/api'
-import { Warning, Setting } from '@element-plus/icons-vue'
 
 // 用户存储
 const userStore = useUserStore()
@@ -774,11 +822,57 @@ const handleReset = () => {
  */
 const getStockClass = (row) => {
   if (!row.stock_status) return ''
-  return {
-    'low-stock': row.stock_status === 'low',
-    'over-stock': row.stock_status === 'over',
-    'normal-stock': row.stock_status === 'normal'
+  const classMap = {
+    'low': 'stock-low',
+    'over': 'stock-over',
+    'normal': ''
   }
+  return classMap[row.stock_status] || ''
+}
+
+/**
+ * 获取库存状态标签文本
+ *
+ * @param {Object} row - 行数据
+ * @returns {string} 状态文本
+ */
+const getStockStatusLabel = (row) => {
+  const labelMap = {
+    'low': '低库存',
+    'over': '过高',
+    'normal': '正常'
+  }
+  return labelMap[row.stock_status] || '未知'
+}
+
+/**
+ * 获取库存状态样式类
+ *
+ * @param {Object} row - 行数据
+ * @returns {string} 样式类名
+ */
+const getStockStatusClass = (row) => {
+  const classMap = {
+    'low': 's-danger',
+    'over': 's-warning',
+    'normal': 's-active'
+  }
+  return classMap[row.stock_status] || ''
+}
+
+/**
+ * 获取物品状态样式类
+ *
+ * @param {number} status - 状态码
+ * @returns {string} 样式类名
+ */
+const getStatusClass = (status) => {
+  const classMap = {
+    1: 's-active',
+    2: 's-danger',
+    3: 's-warning'
+  }
+  return classMap[status] || ''
 }
 
 /**
@@ -1186,7 +1280,7 @@ const handleBatchThresholdSubmit = async () => {
       max_stock: batchThresholdFormData.max_stock
     })
     
-    ElMessage.success(result.message)
+    ElMessage.success(result.message || '批量设置库存阈值成功')
     batchThresholdDialogVisible.value = false
     loadStockList()
   } catch (error) {
@@ -1216,29 +1310,109 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.stock-container {
-  padding: 20px;
+.page-container {
+  max-width: 1500px;
+  margin: 0 auto;
+  animation: fadeIn 0.4s ease-out;
 }
 
-.toolbar-card {
-  margin-bottom: 20px;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.table-card {
-  height: calc(100vh - 250px);
+/* 1. 悬浮工具栏 */
+.glass-toolbar {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(241, 245, 249, 0.8);
+  padding: 16px 24px;
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-.low-stock {
-  color: #f56c6c;
-  font-weight: bold;
+.toolbar-left { display: flex; gap: 12px; }
+.search-input { width: 260px; }
+.filter-select { width: 140px; }
+
+.toolbar-right { display: flex; gap: 12px; align-items: center; }
+
+/* 2. 内容卡片 */
+.content-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  min-height: 650px;
 }
 
-.over-stock {
-  color: #e6a23c;
-  font-weight: bold;
+/* 3. 字体与细节优化 */
+.num-font {
+  font-family: 'Oswald', sans-serif !important;
+  font-weight: 500;
+  letter-spacing: -0.2px;
 }
 
-.normal-stock {
-  color: #67c23a;
+.secondary-num { color: #94a3b8; font-size: 13px; }
+.price-text { color: #2563eb; font-size: 16px; font-weight: 600; }
+.price-text::before { content: '¥'; font-size: 12px; margin-right: 2px; font-family: sans-serif; }
+
+.fw-600 { font-weight: 600; }
+.text-main { color: #1e293b; }
+
+/* 4. 状态标签设计 */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.s-active { background: #f0fdf4; color: #16a34a; }
+.s-active .dot { background: #10b981; box-shadow: 0 0 6px #10b981; }
+
+.s-danger { background: #fef2f2; color: #dc2626; }
+.s-danger .dot { background: #ef4444; }
+
+.s-warning { background: #fffbeb; color: #d97706; }
+.s-warning .dot { background: #f59e0b; }
+
+/* 库存状态样式 */
+.stock-low { color: #ef4444; font-weight: 600; }
+.stock-over { color: #f59e0b; font-weight: 600; }
+
+/* 5. 按钮样式调整 */
+.edit-btn {
+  color: #3b82f6 !important;
+  font-weight: 500;
+}
+.edit-btn:hover {
+  color: #2563eb !important;
+}
+
+/* 6. 对话框样式 */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* 响应式适配 */
+@media (max-width: 992px) {
+  .glass-toolbar { flex-direction: column; gap: 16px; align-items: stretch; }
+  .toolbar-left { flex-direction: column; }
+  .toolbar-right { width: 100%; justify-content: flex-start; }
+  .search-input, .filter-select { width: 100%; }
 }
 </style>

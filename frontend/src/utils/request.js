@@ -20,11 +20,24 @@ import { useUserStore } from '@/stores'
  * API 基础配置
  */
 const config = {
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  // 优先使用本地存储的API地址，否则使用环境变量
+  baseURL: localStorage.getItem('api_base_url') && localStorage.getItem('api_base_url').trim() !== ''
+    ? localStorage.getItem('api_base_url')
+    : import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json;charset=UTF-8'
   }
+}
+
+/**
+ * 设置API基础URL
+ * @param {string} url - API地址
+ */
+export function setApiBaseUrl(url) {
+  config.baseURL = url
+  localStorage.setItem('api_base_url', url)
+  console.log('API地址已更新:', url)
 }
 
 /**

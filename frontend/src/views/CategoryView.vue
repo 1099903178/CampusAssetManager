@@ -17,18 +17,21 @@
  */
 
 <template>
-  <div class="category-container">
-    <!-- 工具栏 -->
-    <el-card class="toolbar-card">
-      <el-form :inline="true">
-        <el-form-item v-if="canManage">
-          <el-button type="primary" @click="handleAdd">新增分类</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+  <div class="page-container">
+    <div class="glass-toolbar">
+      <div class="toolbar-left">
+        <h2 class="page-title">分类管理</h2>
+      </div>
+      
+      <div class="toolbar-right">
+        <el-button v-if="canManage" type="primary" @click="handleAdd">
+          <el-icon><Plus /></el-icon>
+          新增分类
+        </el-button>
+      </div>
+    </div>
     
-    <!-- 分类列表 -->
-    <el-card class="table-card">
+    <div class="content-card">
       <TableComponent
         :data="categoryList"
         :loading="loading"
@@ -36,43 +39,70 @@
         :pagination="false"
       >
         <template #columns>
-          <el-table-column prop="category_id" label="ID" width="80" align="center" />
-          <el-table-column prop="category_code" label="分类编码" width="150" />
-          <el-table-column prop="category_name" label="分类名称" min-width="150" />
-          <el-table-column prop="level" label="层级" width="80" align="center">
+          <el-table-column prop="category_id" label="ID" width="70" align="center" fixed="left">
             <template #default="{ row }">
-              {{ row.level }}
+              <span class="num-font secondary-num">{{ row.category_id }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="parent_id" label="父分类ID" width="120" align="center">
+          
+          <el-table-column prop="category_code" label="分类编码" width="120">
             <template #default="{ row }">
-              {{ row.parent_id || '-' }}
+              <span class="code-text">{{ row.category_code }}</span>
             </template>
           </el-table-column>
+          
+          <el-table-column prop="category_name" label="分类名称" min-width="150">
+            <template #default="{ row }">
+              <span class="text-main fw-600">{{ row.category_name }}</span>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="level" label="层级" width="90" align="center">
+            <template #default="{ row }">
+              <span class="num-font">{{ row.level }}</span>
+            </template>
+          </el-table-column>
+          
+          <el-table-column prop="parent_id" label="父分类ID" width="90" align="center">
+            <template #default="{ row }">
+              <span class="num-font secondary-num">{{ row.parent_id || '-' }}</span>
+            </template>
+          </el-table-column>
+          
           <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-          <el-table-column prop="sort_order" label="排序" width="80" align="center" />
+          
+          <el-table-column prop="sort_order" label="排序" width="80" align="center">
+            <template #default="{ row }">
+              <span class="num-font">{{ row.sort_order }}</span>
+            </template>
+          </el-table-column>
+          
           <el-table-column prop="is_active" label="状态" width="100" align="center">
             <template #default="{ row }">
-              <el-tag :type="row.is_active === 1 ? 'success' : 'danger'">
-                {{ row.is_active === 1 ? '启用' : '禁用' }}
-              </el-tag>
+              <div class="status-pill" :class="row.is_active === 1 ? 's-active' : 's-danger'">
+                <span class="dot"></span>
+                <span>{{ row.is_active === 1 ? '启用' : '禁用' }}</span>
+              </div>
             </template>
           </el-table-column>
-          <el-table-column v-if="canManage" label="操作" width="200" align="center" fixed="right">
+          
+          <el-table-column v-if="canManage" label="操作" width="140" align="center" fixed="right">
             <template #default="{ row }">
-              <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
+              <el-button link class="edit-btn" @click="handleEdit(row)">编辑</el-button>
+              <el-divider direction="vertical" />
               <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
             </template>
           </el-table-column>
         </template>
       </TableComponent>
-    </el-card>
+    </div>
     
     <!-- 新增/编辑对话框 -->
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
       width="600px"
+      class="custom-dialog"
       @close="handleDialogClose"
     >
       <el-form
@@ -80,6 +110,7 @@
         :model="formData"
         :rules="formRules"
         label-width="120px"
+        class="modern-form"
       >
         <el-form-item label="分类编码" prop="category_code">
           <el-input v-model="formData.category_code" placeholder="请输入分类编码" />
@@ -139,8 +170,10 @@
       </el-form>
       
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSave" :loading="submitLoading">保存</el-button>
+        <div class="dialog-footer">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleSave" :loading="submitLoading">保存</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -149,6 +182,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
 import TableComponent from '@/components/common/TableComponent.vue'
 import {
   getGoodsCategories,
@@ -379,15 +413,103 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.category-container {
-  padding: 20px;
+.page-container {
+  max-width: 1500px;
+  margin: 0 auto;
+  animation: fadeIn 0.4s ease-out;
 }
 
-.toolbar-card {
-  margin-bottom: 20px;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.table-card {
-  margin-bottom: 20px;
+/* 1. 悬浮工具栏 */
+.glass-toolbar {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(241, 245, 249, 0.8);
+  padding: 16px 24px;
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.toolbar-left { display: flex; align-items: center; gap: 12px; }
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.toolbar-right { display: flex; gap: 12px; align-items: center; }
+
+/* 2. 内容卡片 */
+.content-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  min-height: 500px;
+}
+
+/* 3. 字体与细节优化 */
+.num-font {
+  font-family: 'Oswald', sans-serif !important;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+}
+
+.secondary-num { color: #94a3b8; font-size: 13px; }
+.code-text { color: #64748b; font-size: 13px; font-family: 'Consolas', monospace; }
+.fw-600 { font-weight: 600; }
+.text-main { color: #1e293b; }
+
+/* 4. 状态标签设计 */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.s-active { background: #f0fdf4; color: #16a34a; }
+.s-active .dot { background: #10b981; box-shadow: 0 0 6px #10b981; }
+
+.s-danger { background: #fef2f2; color: #dc2626; }
+.s-danger .dot { background: #ef4444; }
+
+/* 5. 按钮样式调整 */
+.edit-btn {
+  color: #3b82f6 !important;
+  font-weight: 500;
+}
+.edit-btn:hover {
+  color: #2563eb !important;
+}
+
+/* 6. 对话框样式 */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* 响应式适配 */
+@media (max-width: 992px) {
+  .glass-toolbar { flex-direction: column; gap: 16px; align-items: stretch; }
+  .toolbar-left { flex-direction: column; align-items: flex-start; }
+  .toolbar-right { width: 100%; justify-content: flex-start; }
 }
 </style>

@@ -79,19 +79,37 @@ body,
   background-color: transparent;
 }
 
-/* 页面切换动画 - 轻柔的淡入淡出 */
-.fade-transform-enter-active,
-.fade-transform-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+/* 页面切换动画 - GPU加速优化 */
+.router-view {
+  /* 强制使用GPU渲染 */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  /* 预留动画资源 */
+  will-change: opacity, transform;
 }
 
-.fade-transform-enter-from {
-  opacity: 0;
-  transform: translateX(-10px);
+.page-enter-active,
+.page-leave-active {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-.fade-transform-leave-to {
+.page-enter-from {
   opacity: 0;
-  transform: translateX(10px);
+  transform: scale(0.95) translateY(20px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: scale(1.05);
+}
+
+/* 离开动画时绝对定位，避免布局抖动 */
+.page-leave-active {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
 }
 </style>
